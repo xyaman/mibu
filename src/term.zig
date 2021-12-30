@@ -51,10 +51,9 @@ pub const RawTerm = struct {
         termios.cflag |= (os.system.CS8);
         termios.lflag &= ~(os.system.ECHO | os.system.ICANON | os.system.IEXTEN | os.system.ISIG);
 
-        // Add timeout to input
-        // I don't know if this will be compatible with other platforms
-        // I couldn't find this constants on other place
-        termios.cc[os.system.V.MIN] = 0;
+        // Read will wait until reads one byte.
+        // After read is called, we return immediately
+        termios.cc[os.system.V.MIN] = 2;
         termios.cc[os.system.V.TIME] = 1;
 
         // apply changes
@@ -88,15 +87,14 @@ pub fn getSize() !TermSize {
 
 test "" {
     const stdin = io.getStdIn();
-    // actually the same as os.STDIN_FILENO
 
-    var term = try RawTerm.enableRawMode(stdin.handle);
+    var term = try RawTerm.enableRawMode(stdin.handle); // stdin.handle is the same as os.STDIN_FILENO
     defer term.disableRawMode() catch unreachable;
 
     var stdin_reader = stdin.reader();
-    var buf: [1]u8 = undefined;
-
-    while ((try stdin_reader.read(&buf)) != 0) {
+    var buf: [3]u8 = undefined;
+    while ((try stdin_reader.read(&buf)) != 0 and buf[0] != 'q')
         std.debug.print("read: {s}\n\r", .{buf});
-    }
+
+    std.debug.print("bye bye\n", .{});
 }
