@@ -17,10 +17,10 @@ pub fn build(b: *std.build.Builder) void {
     test_step.dependOn(&main_tests.step);
 
     // examples
-    const example = b.addExecutable("example", "examples/print.zig");
-    example.setTarget(target);
-    example.addPackagePath("mibu", "src/main.zig");
+    const color = b.addExecutable("color", "examples/color.zig");
+    color.setTarget(target);
+    color.addPackagePath("mibu", "src/main.zig");
 
-    const example_step = b.step("example1", "Run example 1");
-    example_step.dependOn(&example.run().step);
+    const color_step = b.step("color", "Run color example");
+    color_step.dependOn(&color.run().step);
 }
