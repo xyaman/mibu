@@ -23,4 +23,11 @@ pub fn build(b: *std.build.Builder) void {
 
     const color_step = b.step("color", "Run color example");
     color_step.dependOn(&color.run().step);
+
+    const event = b.addExecutable("event", "examples/event.zig");
+    event.setTarget(target);
+    event.addPackagePath("mibu", "src/main.zig");
+
+    const event_step = b.step("event", "Run event example");
+    event_step.dependOn(&event.run().step);
 }
