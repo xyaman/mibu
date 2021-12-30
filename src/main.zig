@@ -5,6 +5,7 @@ pub const Color = @import("color.zig").Color;
 pub const Cursor = @import("cursor.zig").Cursor;
 pub const utils = @import("utils.zig");
 pub const term = @import("term.zig");
+pub const events = @import("event.zig");
 
 test "" {
     std.testing.refAllDecls(@This());
