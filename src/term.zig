@@ -2,7 +2,12 @@ const std = @import("std");
 const os = std.os;
 const io = std.io;
 
-const winsize = std.os.linux.winsize;
+const winsize = std.os.system.winsize;
+
+pub const ReadKind = enum {
+    blocking,
+    nonblocking,
+};
 
 const TIOCGWINSZ = 0x5413; // only for linux
 pub const TermSize = struct {
@@ -25,7 +30,7 @@ pub const RawTerm = struct {
 
     /// Enters to Raw Mode, don't forget to run `disableRawMode`
     /// at the end, to return to the previous terminal state.
-    pub fn enableRawMode(handle: os.system.fd_t) !Self {
+    pub fn enableRawMode(handle: os.system.fd_t, blocking: ReadKind) !Self {
         var original_termios = try os.tcgetattr(handle);
 
         var termios = original_termios;
@@ -51,9 +56,12 @@ pub const RawTerm = struct {
         termios.cflag |= (os.system.CS8);
         termios.lflag &= ~(os.system.ECHO | os.system.ICANON | os.system.IEXTEN | os.system.ISIG);
 
-        // Read will wait until reads one byte.
-        // After read is called, we return immediately
-        termios.cc[os.system.V.MIN] = 2;
+        // Read will wait until reads one byte or zero
+        // depending of mode
+        switch (blocking) {
+            .blocking => termios.cc[os.system.V.MIN] = 1,
+            .nonblocking => termios.cc[os.system.V.MIN] = 0,
+        }
         termios.cc[os.system.V.TIME] = 1;
 
         // apply changes
@@ -88,8 +96,8 @@ pub fn getSize() !TermSize {
 test "" {
     const stdin = io.getStdIn();
 
-    var term = try RawTerm.enableRawMode(stdin.handle); // stdin.handle is the same as os.STDIN_FILENO
-    defer term.disableRawMode() catch unreachable;
+    var term = try RawTerm.enableRawMode(stdin.handle, .blocking); // stdin.handle is the same as os.STDIN_FILENO
+    defer term.disableRawMode() catch {};
 
     var stdin_reader = stdin.reader();
     var buf: [3]u8 = undefined;

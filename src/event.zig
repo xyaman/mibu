@@ -2,10 +2,14 @@ const std = @import("std");
 const io = std.io;
 
 /// Returns the next event received.
-/// It will block until read at least one byte.
+/// If raw term is `.blocking` or term is canonical it will block until read at least one event.
+/// otherwise it will return `.none` if it didnt read any event
 pub fn next(in: anytype) !Event {
     var buf: [6]u8 = undefined;
     const c = try in.read(&buf);
+    if (c == 0) {
+        return .none;
+    }
 
     // check if it is an special character
     // its on a different switch because its included on ctrl arm
@@ -35,9 +39,6 @@ pub fn next(in: anytype) !Event {
                     return Event{ .key = .escape };
                 },
             }
-
-            // std.debug.print("\n\r{s}", .{buf[1..]});
-            return .not_supported;
         },
         // ctrl arm
         '\x01'...'\x1A' => Event{ .key = Key{ .ctrl = buf[0] - 0x1 + 'a' } },
@@ -99,6 +100,7 @@ pub const Event = union(enum) {
     key: Key,
     mouse,
     not_supported,
+    none,
 };
 
 pub const Key = union(enum) {
@@ -117,6 +119,7 @@ pub const Key = union(enum) {
 
     /// char is an array because it can contain utf-8 chars
     /// it will ALWAYS contains at least one char
+    // TODO: Unicode compatiblUnicode compatible
     char: []u8,
     fun: u8,
     alt: u8,
@@ -127,7 +130,7 @@ test "next" {
     const term = @import("main.zig").term;
     const stdin = io.getStdIn();
 
-    var raw = try term.RawTerm.enableRawMode(stdin.handle);
+    var raw = try term.RawTerm.enableRawMode(stdin.handle, .blocking);
     defer raw.disableRawMode() catch {};
 
     var i: usize = 0;

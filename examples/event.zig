@@ -10,7 +10,7 @@ pub fn main() !void {
     const stdout = io.getStdOut();
 
     // Enable terminal raw mode, its very recommended when listening for events
-    var raw_term = try RawTerm.enableRawMode(stdin.handle);
+    var raw_term = try RawTerm.enableRawMode(stdin.handle, .nonblocking);
     defer raw_term.disableRawMode() catch {};
 
     try stdout.writer().print("Press q or Ctrl-C to exit...\n\r", .{});
