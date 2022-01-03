@@ -49,7 +49,7 @@ pub const Key = union(enum) {
     /// char is an array because it can contain utf-8 chars
     /// it will ALWAYS contains at least one char
     // TODO: Unicode compatible
-    char: []u8,
+    char: u21,
     fun: u8,
     alt: u8,
 
@@ -121,7 +121,7 @@ pub fn next(in: anytype) !Event {
         '\x01'...'\x1A', '\x1C'...'\x1F' => Event{ .key = KeyMap.get(buf[0..c]).? },
 
         // chars
-        else => Event{ .key = Key{ .char = buf[0..c] } },
+        else => Event{ .key = Key{ .char = try std.unicode.utf8Decode(buf[0..c]) } },
     };
 
     return key;

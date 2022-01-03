@@ -19,9 +19,9 @@ pub fn main() !void {
         switch (try events.next(stdin)) {
             .key => |k| switch (k) {
                 // char can have more than 1 u8, because of unicode
-                .char => |c| switch (c[0]) {
+                .char => |c| switch (c) {
                     'q' => break,
-                    else => try stdout.writer().print("Key char: {s}\n\r", .{c}),
+                    else => try stdout.writer().print("Key char: {u}\n\r", .{c}),
                 },
                 .ctrlC => break,
                 else => try stdout.writer().print("Key: {s}\n\r", .{k}),
