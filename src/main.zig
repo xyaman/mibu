@@ -1,8 +1,8 @@
 const std = @import("std");
 
-pub const Clear = @import("clear.zig").Clear;
-pub const Color = @import("color.zig").Color;
-pub const Cursor = @import("cursor.zig").Cursor;
+pub const clear = @import("clear.zig");
+pub const color = @import("color.zig");
+pub const cursor = @import("cursor.zig");
 pub const utils = @import("utils.zig");
 pub const term = @import("term.zig");
 pub const events = @import("event.zig");
