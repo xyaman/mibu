@@ -1,6 +1,94 @@
 const std = @import("std");
 const io = std.io;
 
+const RawTerm = @import("term.zig").RawTerm;
+
+const ComptimeStringMap = std.ComptimeStringMap;
+
+const KeyMap = ComptimeStringMap(Key, .{
+    .{ "\x01", .ctrlA },
+    .{ "\x02", .ctrlB },
+    .{ "\x03", .ctrlC },
+    .{ "\x04", .ctrlD },
+    .{ "\x05", .ctrlE },
+    .{ "\x06", .ctrlF },
+    .{ "\x07", .ctrlG },
+    .{ "\x08", .ctrlH },
+    .{ "\x09", .ctrlI },
+    .{ "\x0A", .ctrlJ },
+    .{ "\x0B", .ctrlK },
+    .{ "\x0C", .ctrlL },
+    .{ "\x0D", .ctrlM },
+    .{ "\x0E", .ctrlN },
+    .{ "\x0F", .ctrlO },
+    .{ "\x10", .ctrlP },
+    .{ "\x11", .ctrlQ },
+    .{ "\x12", .ctrlR },
+    .{ "\x13", .ctrlS },
+    .{ "\x14", .ctrlT },
+    .{ "\x15", .ctrlU },
+    .{ "\x16", .ctrlV },
+    .{ "\x17", .ctrlW },
+    .{ "\x18", .ctrlX },
+    .{ "\x19", .ctrlY },
+    .{ "\x1A", .ctrlZ },
+    .{ "\x1B", .escape },
+    .{ "\x1C", .fs },
+    .{ "\x1D", .gs },
+    .{ "\x1E", .rs },
+    .{ "\x1F", .us },
+    .{ "\x7F", .delete },
+});
+
+pub const Key = union(enum) {
+    up,
+    down,
+    right,
+    left,
+
+    /// char is an array because it can contain utf-8 chars
+    /// it will ALWAYS contains at least one char
+    // TODO: Unicode compatible
+    char: []u8,
+    fun: u8,
+    alt: u8,
+
+    // ctrl keys
+    ctrlA,
+    ctrlB,
+    ctrlC,
+    ctrlD,
+    ctrlE,
+    ctrlF,
+    ctrlG,
+    ctrlH,
+    ctrlI,
+    ctrlJ,
+    ctrlK,
+    ctrlL,
+    ctrlM,
+    ctrlN,
+    ctrlO,
+    ctrlP,
+    ctrlQ,
+    ctrlR,
+    ctrlS,
+    ctrlT,
+    ctrlU,
+    ctrlV,
+    ctrlW,
+    ctrlX,
+    ctrlY,
+    ctrlZ,
+
+    escape,
+    fs,
+    gs,
+    rs,
+    us,
+    delete,
+};
+
 /// Returns the next event received.
 /// If raw term is `.blocking` or term is canonical it will block until read at least one event.
 /// otherwise it will return `.none` if it didnt read any event
@@ -9,16 +97,6 @@ pub fn next(in: anytype) !Event {
     const c = try in.read(&buf);
     if (c == 0) {
         return .none;
-    }
-
-    // check if it is an special character
-    // its on a different switch because its included on ctrl arm
-    switch (buf[0]) {
-        '\x7F' => return Event{ .key = .backspace },
-        '\t' => return Event{ .key = .horizontal_tab },
-        '\n' => return Event{ .key = .new_line },
-        '\r' => return Event{ .key = .enter },
-        else => {},
     }
 
     const key = switch (buf[0]) {
@@ -31,7 +109,6 @@ pub fn next(in: anytype) !Event {
 
                 // csi
                 '[' => {
-                    // std.debug.print("\n\r{s}", .{buf[1..]});
                     return try parse_csi(&buf);
                 },
 
@@ -40,9 +117,9 @@ pub fn next(in: anytype) !Event {
                 },
             }
         },
-        // ctrl arm
-        '\x01'...'\x1A' => Event{ .key = Key{ .ctrl = buf[0] - 0x1 + 'a' } },
-        '\x1C'...'\x1F' => Event{ .key = Key{ .ctrl = buf[0] - 0x1C + '4' } },
+        // ctrl arm + specials
+        '\x01'...'\x1A', '\x1C'...'\x1F' => Event{ .key = KeyMap.get(buf[0..c]).? },
+
         // chars
         else => Event{ .key = Key{ .char = buf[0..c] } },
     };
@@ -101,29 +178,6 @@ pub const Event = union(enum) {
     mouse,
     not_supported,
     none,
-};
-
-pub const Key = union(enum) {
-    terminal_bell,
-    backspace,
-    horizontal_tab,
-    new_line,
-    enter,
-    escape,
-    delete,
-
-    up,
-    down,
-    right,
-    left,
-
-    /// char is an array because it can contain utf-8 chars
-    /// it will ALWAYS contains at least one char
-    // TODO: Unicode compatiblUnicode compatible
-    char: []u8,
-    fun: u8,
-    alt: u8,
-    ctrl: u8,
 };
 
 test "next" {
