@@ -2,6 +2,7 @@ const std = @import("std");
 const io = std.io;
 
 const RawTerm = @import("term.zig").RawTerm;
+const cursor = @import("cursor.zig");
 
 const ComptimeStringMap = std.ComptimeStringMap;
 
@@ -87,13 +88,15 @@ pub const Key = union(enum) {
     rs,
     us,
     delete,
+
+    cursor: struct { x: i16, y: i16 },
 };
 
 /// Returns the next event received.
 /// If raw term is `.blocking` or term is canonical it will block until read at least one event.
 /// otherwise it will return `.none` if it didnt read any event
 pub fn next(in: anytype) !Event {
-    var buf: [6]u8 = undefined;
+    var buf: [20]u8 = undefined;
     const c = try in.read(&buf);
     if (c == 0) {
         return .none;
@@ -109,7 +112,7 @@ pub fn next(in: anytype) !Event {
 
                 // csi
                 '[' => {
-                    return try parse_csi(&buf);
+                    return try parse_csi(buf[0..c]);
                 },
 
                 else => {
@@ -118,7 +121,7 @@ pub fn next(in: anytype) !Event {
             }
         },
         // ctrl arm + specials
-        '\x01'...'\x1A', '\x1C'...'\x1F' => Event{ .key = KeyMap.get(buf[0..c]).? },
+        '\x01'...'\x1A', '\x1C'...'\x1F', '\x7F' => Event{ .key = KeyMap.get(buf[0..c]).? },
 
         // chars
         else => Event{ .key = Key{ .char = try std.unicode.utf8Decode(buf[0..c]) } },
@@ -128,6 +131,19 @@ pub fn next(in: anytype) !Event {
 }
 
 fn parse_csi(buf: []const u8) !Event {
+    // Cursor position report
+    if (buf[buf.len - 1] == 'R') {
+        var y_offset: usize = 2;
+        y_offset += try read_until(buf[2..], ';');
+
+        var x_offset: usize = y_offset + 1;
+        x_offset += try read_until(buf[2 + y_offset ..], 'R');
+
+        return Event{ .key = .{ .cursor = .{
+            .x = try std.fmt.parseInt(i16, buf[y_offset + 1 .. x_offset], 10),
+            .y = try std.fmt.parseInt(i16, buf[2..y_offset], 10),
+        } } };
+    }
 
     // so we skip the first 2 chars (\x1b[)
     switch (buf[2]) {
@@ -150,8 +166,6 @@ fn parse_csi(buf: []const u8) !Event {
                 else => {},
             }
         },
-        // fn (kinda weird, not easy to make a range)
-        // '15' => return Event{ .key = Key{.fun = buf[2] + 1 - 'A'}},
 
         else => {},
     }
@@ -186,6 +200,8 @@ test "next" {
 
     var raw = try term.RawTerm.enableRawMode(stdin.handle, .blocking);
     defer raw.disableRawMode() catch {};
+
+    try io.getStdOut().writer().print("{s}", .{cursor.getPos()});
 
     var i: usize = 0;
     while (i < 3) : (i += 1) {
