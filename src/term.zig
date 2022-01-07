@@ -11,7 +11,6 @@ pub const ReadKind = enum {
     nonblocking,
 };
 
-const TIOCGWINSZ = 0x5413; // only for linux
 pub const TermSize = struct {
     width: u16,
     height: u16,
@@ -80,21 +79,12 @@ pub const RawTerm = struct {
     }
 };
 
-// Triggers Size event, so you need to retrieve event reading stdin(for example)
-pub fn getSizeAsEvent(out: anytype) void {
-    // move the cursor to most bottom-right edge
-    try out.print("{s}{s}", .{ cursor.goRight(999), cursor.goDown(999) });
-
-    // get cursor position
-    try out.print("{s}", .{cursor.getPos()});
-}
-
 // Doesn't work on all platforms, so you have `getSizeAsEvent`
 pub fn getSize() !TermSize {
     var ws: winsize = undefined;
 
     // https://github.com/ziglang/zig/blob/master/lib/std/os/linux/errno/generic.zig
-    const err = std.os.linux.ioctl(0, TIOCGWINSZ, @ptrToInt(&ws));
+    const err = std.os.linux.ioctl(0, os.system.T.IOCGWINSZ, @ptrToInt(&ws));
     if (std.os.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }
@@ -107,6 +97,7 @@ pub fn getSize() !TermSize {
 
 test "" {
     const stdin = io.getStdIn();
+    _ = try getSize();
 
     var term = try RawTerm.enableRawMode(stdin.handle, .blocking); // stdin.handle is the same as os.STDIN_FILENO
     defer term.disableRawMode() catch {};
