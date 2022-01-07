@@ -189,6 +189,7 @@ fn read_until(buf: []const u8, del: u8) !usize {
 
 pub const Event = union(enum) {
     key: Key,
+    resize,
     mouse,
     not_supported,
     none,
