@@ -10,6 +10,7 @@
 - Cursor controls.
 - Clear(Erase) functions.
 - Colors.
+- Text style.
 - Key events.
 
 ## Getting Started
@@ -18,6 +19,5 @@ See the [examples directory](examples/)
 
 ## TODO
 
-- Support text styles.
 - Support mouse events
 - Support more keys events

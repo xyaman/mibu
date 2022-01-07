@@ -2,6 +2,8 @@ const std = @import("std");
 const os = std.os;
 const io = std.io;
 
+const cursor = @import("cursor.zig");
+
 const winsize = std.os.system.winsize;
 
 pub const ReadKind = enum {
@@ -78,6 +80,16 @@ pub const RawTerm = struct {
     }
 };
 
+// Triggers Size event, so you need to retrieve event reading stdin(for example)
+pub fn getSizeAsEvent(out: anytype) void {
+    // move the cursor to most bottom-right edge
+    try out.print("{s}{s}", .{ cursor.goRight(999), cursor.goDown(999) });
+
+    // get cursor position
+    try out.print("{s}", .{cursor.getPos()});
+}
+
+// Doesn't work on all platforms, so you have `getSizeAsEvent`
 pub fn getSize() !TermSize {
     var ws: winsize = undefined;
 

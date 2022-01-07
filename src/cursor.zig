@@ -59,3 +59,7 @@ pub inline fn save() []const u8 {
 pub inline fn restore() []const u8 {
     return utils.comptimeCsi("s", .{});
 }
+
+pub inline fn getPos() []const u8 {
+    return utils.comptimeCsi("6n", .{});
+}
