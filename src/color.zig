@@ -46,22 +46,22 @@ pub const print = struct {
 };
 
 /// Writes the escape sequence code to change foreground to `color` (using 256 colors)
-pub fn writeFg256(writer: anytype, color: Color) !void {
+pub fn fg256(writer: anytype, color: Color) !void {
     return std.fmt.format(writer, utils.csi ++ utils.fg_256 ++ "{d}m", .{@enumToInt(color)});
 }
 
 /// Writes the escape sequence code to change background to `color` (using 256 colors)
-pub fn writeBg256(writer: anytype, color: Color) !void {
+pub fn bg256(writer: anytype, color: Color) !void {
     return std.fmt.format(writer, utils.csi ++ utils.bg_256 ++ "{d}m", .{@enumToInt(color)});
 }
 
 /// Writes the escape sequence code to change foreground to rgb color
-pub fn writeFgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
+pub fn fgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
     return std.fmt.format(writer, utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
 }
 
 /// Writes the escape sequence code to change background to rgb color
-pub fn writeBgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
+pub fn bgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
     return std.fmt.format(writer, utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
 }
 
