@@ -3,14 +3,14 @@ const io = std.io;
 
 const mibu = @import("mibu");
 const events = mibu.events;
-const RawTerm = mibu.term.RawTerm;
+const term = mibu.term;
 
 pub fn main() !void {
     const stdin = io.getStdIn();
     const stdout = io.getStdOut();
 
     // Enable terminal raw mode, its very recommended when listening for events
-    var raw_term = try RawTerm.enableRawMode(stdin.handle, .nonblocking);
+    var raw_term = try term.enableRawMode(stdin.handle, .blocking);
     defer raw_term.disableRawMode() catch {};
 
     try stdout.writer().print("Press q or Ctrl-C to exit...\n\r", .{});
