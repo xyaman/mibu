@@ -64,3 +64,8 @@ pub fn writeFgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
 pub fn writeBgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
     return std.fmt.format(writer, utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
 }
+
+/// Writes the escape code to reset style and color
+pub fn resetAll(writer: anytype) !void {
+    return std.fmt.format(writer, utils.csi ++ utils.reset_all, .{});
+}

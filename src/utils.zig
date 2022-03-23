@@ -14,6 +14,9 @@ pub const fg_rgb = "38;2;";
 /// Sequence to set foreground color using 256 colors table
 pub const bg_rgb = "48;2;";
 
+/// Sequence to reset color and style
+pub const reset_all = "0m";
+
 pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
     const str = "\x1b[" ++ fmt;
     return std.fmt.comptimePrint(str, args);
