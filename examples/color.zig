@@ -11,9 +11,9 @@ pub fn main() !void {
 
     try stdout.writer().print("{s}Warning text\n", .{color.print.fg(.red)});
 
-    try color.writeFg256(stdout.writer(), .blue);
+    try color.fg256(stdout.writer(), .blue);
     try stdout.writer().print("Blue text\n", .{});
 
-    try color.writeFgRGB(stdout.writer(), 97, 37, 160);
+    try color.fgRGB(stdout.writer(), 97, 37, 160);
     try stdout.writer().print("Purple text\n", .{});
 }
