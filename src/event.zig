@@ -1,152 +1,116 @@
 const std = @import("std");
 const io = std.io;
 
-const RawTerm = @import("term.zig").RawTerm;
 const cursor = @import("cursor.zig");
 
-const ComptimeStringMap = std.ComptimeStringMap;
-
-const KeyMap = ComptimeStringMap(Key, .{
-    .{ "\x01", .ctrlA },
-    .{ "\x02", .ctrlB },
-    .{ "\x03", .ctrlC },
-    .{ "\x04", .ctrlD },
-    .{ "\x05", .ctrlE },
-    .{ "\x06", .ctrlF },
-    .{ "\x07", .ctrlG },
-    .{ "\x08", .ctrlH },
-    .{ "\x09", .ctrlI },
-    .{ "\x0A", .ctrlJ },
-    .{ "\x0B", .ctrlK },
-    .{ "\x0C", .ctrlL },
-    .{ "\x0D", .ctrlM },
-    .{ "\x0E", .ctrlN },
-    .{ "\x0F", .ctrlO },
-    .{ "\x10", .ctrlP },
-    .{ "\x11", .ctrlQ },
-    .{ "\x12", .ctrlR },
-    .{ "\x13", .ctrlS },
-    .{ "\x14", .ctrlT },
-    .{ "\x15", .ctrlU },
-    .{ "\x16", .ctrlV },
-    .{ "\x17", .ctrlW },
-    .{ "\x18", .ctrlX },
-    .{ "\x19", .ctrlY },
-    .{ "\x1A", .ctrlZ },
-    .{ "\x1B", .escape },
-    .{ "\x1C", .fs },
-    .{ "\x1D", .gs },
-    .{ "\x1E", .rs },
-    .{ "\x1F", .us },
-    .{ "\x7F", .delete },
-});
-
-pub const Key = union(enum) {
-    up,
-    down,
-    right,
-    left,
-
-    /// char is an array because it can contain utf-8 chars
-    /// it will ALWAYS contains at least one char
-    // TODO: Unicode compatible
+const Key = union(enum) {
+    // unicode character
     char: u21,
+    ctrl: u21,
+    alt: u21,
     fun: u8,
-    alt: u8,
 
-    // ctrl keys
-    ctrlA,
-    ctrlB,
-    ctrlC,
-    ctrlD,
-    ctrlE,
-    ctrlF,
-    ctrlG,
-    ctrlH,
-    ctrlI,
-    ctrlJ,
-    ctrlK,
-    ctrlL,
-    ctrlM,
-    ctrlN,
-    ctrlO,
-    ctrlP,
-    ctrlQ,
-    ctrlR,
-    ctrlS,
-    ctrlT,
-    ctrlU,
-    ctrlV,
-    ctrlW,
-    ctrlX,
-    ctrlY,
-    ctrlZ,
+    // arrow keys
+    up: void,
+    down: void,
+    left: void,
+    right: void,
 
-    escape,
-    fs,
-    gs,
-    rs,
-    us,
-    delete,
+    esc: void,
+    delete: void,
+    enter: void,
 
-    cursor: struct { x: i16, y: i16 },
+    __non_exhaustive: void,
+
+    pub fn format(
+        value: Key,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+        if (fmt.len == 1 and fmt[0] == 's') {
+            try writer.writeAll("Key.");
+
+            switch (value) {
+                .ctrl => |c| try std.fmt.format(writer, "ctrl({u})", .{c}),
+                .alt => |c| try std.fmt.format(writer, "alt({u})", .{c}),
+                .char => |c| try std.fmt.format(writer, "char({u})", .{c}),
+                .fun => |d| try std.fmt.format(writer, "fun({d})", .{d}),
+
+                // arrow keys
+                .up => try std.fmt.format(writer, "up", .{}),
+                .down => try std.fmt.format(writer, "down", .{}),
+                .left => try std.fmt.format(writer, "left", .{}),
+                .right => try std.fmt.format(writer, "right", .{}),
+
+                // special keys
+                .esc => try std.fmt.format(writer, "esc", .{}),
+                .enter => try std.fmt.format(writer, "enter", .{}),
+                .delete => try std.fmt.format(writer, "delete", .{}),
+
+                else => try std.fmt.format(writer, "Not available yet", .{}),
+            }
+        }
+    }
 };
 
 /// Returns the next event received.
 /// If raw term is `.blocking` or term is canonical it will block until read at least one event.
 /// otherwise it will return `.none` if it didnt read any event
+///
+/// `in`: needs to be reader
 pub fn next(in: anytype) !Event {
+    // TODO: Check buffer size
     var buf: [20]u8 = undefined;
     const c = try in.read(&buf);
     if (c == 0) {
         return .none;
     }
 
-    const key = switch (buf[0]) {
+    const view = try std.unicode.Utf8View.init(buf[0..c]);
+    var iter = view.iterator();
+    var event: Event = .none;
+
+    // TODO: Find a better way to iterate buffer
+    if (iter.nextCodepoint()) |c0| switch (c0) {
         '\x1b' => {
-            switch (buf[1]) {
-                // can be fn (1 - 4)
-                'O' => {
-                    return Event{ .key = Key{ .fun = (1 + buf[2] - 'P') } };
+            if (iter.nextCodepoint()) |c1| switch (c1) {
+                // fn (1 - 4)
+                // O - 0x6f - 111
+                '\x4f' => {
+                    return Event{ .key = Key{ .fun = (1 + buf[2] - '\x50') } };
                 },
 
                 // csi
                 '[' => {
-                    return try parse_csi(buf[0..c]);
+                    return try parse_csi(buf[2..c]);
                 },
 
+                // alt key
                 else => {
-                    return Event{ .key = .escape };
+                    return Event{ .key = Key{ .alt = c1 } };
                 },
+            } else {
+                return Event{ .key = .esc };
             }
         },
-        // ctrl arm + specials
-        '\x01'...'\x1A', '\x1C'...'\x1F', '\x7F' => Event{ .key = KeyMap.get(buf[0..c]).? },
+        // ctrl keys (avoids ctrl-m)
+        '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
 
-        // chars
-        else => Event{ .key = Key{ .char = try std.unicode.utf8Decode(buf[0..c]) } },
+        // special chars
+        '\x7f' => return Event{ .key = .delete },
+        '\x0D' => return Event{ .key = .enter },
+
+        // chars and shift + chars
+        else => return Event{ .key = Key{ .char = c0 } },
     };
 
-    return key;
+    return event;
 }
 
 fn parse_csi(buf: []const u8) !Event {
-    // Cursor position report
-    if (buf[buf.len - 1] == 'R') {
-        var y_offset: usize = 2;
-        y_offset += try read_until(buf[2..], ';');
-
-        var x_offset: usize = y_offset + 1;
-        x_offset += try read_until(buf[2 + y_offset ..], 'R');
-
-        return Event{ .key = .{ .cursor = .{
-            .x = try std.fmt.parseInt(i16, buf[y_offset + 1 .. x_offset], 10),
-            .y = try std.fmt.parseInt(i16, buf[2..y_offset], 10),
-        } } };
-    }
-
-    // so we skip the first 2 chars (\x1b[)
-    switch (buf[2]) {
+    switch (buf[0]) {
         // keys
         'A' => return Event{ .key = .up },
         'B' => return Event{ .key = .down },
@@ -154,7 +118,7 @@ fn parse_csi(buf: []const u8) !Event {
         'D' => return Event{ .key = .left },
 
         '1'...'2' => {
-            switch (buf[3]) {
+            switch (buf[1]) {
                 '5' => return Event{ .key = Key{ .fun = 5 } },
                 '7' => return Event{ .key = Key{ .fun = 6 } },
                 '8' => return Event{ .key = Key{ .fun = 7 } },
@@ -166,31 +130,14 @@ fn parse_csi(buf: []const u8) !Event {
                 else => {},
             }
         },
-
         else => {},
     }
 
     return .not_supported;
 }
 
-fn read_until(buf: []const u8, del: u8) !usize {
-    var offset: usize = 0;
-
-    while (offset < buf.len) {
-        offset += 1;
-
-        if (buf[offset] == del) {
-            return offset;
-        }
-    }
-
-    return error.CantReadEvent;
-}
-
 pub const Event = union(enum) {
     key: Key,
-    resize,
-    mouse,
     not_supported,
     none,
 };
@@ -199,10 +146,8 @@ test "next" {
     const term = @import("main.zig").term;
     const stdin = io.getStdIn();
 
-    var raw = try term.RawTerm.enableRawMode(stdin.handle, .blocking);
+    var raw = try term.enableRawMode(stdin.handle, .blocking);
     defer raw.disableRawMode() catch {};
-
-    try io.getStdOut().writer().print("{s}", .{cursor.getPos()});
 
     var i: usize = 0;
     while (i < 3) : (i += 1) {

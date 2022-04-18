@@ -23,7 +23,10 @@ pub fn main() !void {
                     'q' => break,
                     else => try stdout.writer().print("Key char: {u}\n\r", .{c}),
                 },
-                .ctrlC => break,
+                .ctrl => |c| switch (c) {
+                    'c' => break,
+                    else => {},
+                },
                 else => try stdout.writer().print("Key: {s}\n\r", .{k}),
             },
             // ex. mouse events not supported yet
