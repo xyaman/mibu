@@ -138,6 +138,7 @@ fn parse_csi(buf: []const u8) !Event {
 
 pub const Event = union(enum) {
     key: Key,
+    resize,
     not_supported,
     none,
 };

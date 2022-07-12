@@ -78,11 +78,11 @@ pub const TermSize = struct {
 };
 
 /// Get the terminal size, use `fd` equals to 0 use stdin
-pub fn getSize(fd: ?std.os.fd_t) !TermSize {
+pub fn getSize(fd: std.os.fd_t) !TermSize {
     var ws: std.os.system.winsize = undefined;
 
     // https://github.com/ziglang/zig/blob/master/lib/std/os/linux/errno/generic.zig
-    const err = std.os.linux.ioctl(fd, os.system.T.IOCGWINSZ, @ptrToInt(&ws));
+    const err = std.c.ioctl(fd, os.system.T.IOCGWINSZ, @ptrToInt(&ws));
     if (std.os.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }
