@@ -153,6 +153,6 @@ test "next" {
     var i: usize = 0;
     while (i < 3) : (i += 1) {
         const key = try next(stdin.reader());
-        std.debug.print("\n\r{s}\n", .{key});
+        std.debug.print("\n\r{any}\n", .{key});
     }
 }
