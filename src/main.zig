@@ -8,6 +8,6 @@ pub const utils = @import("utils.zig");
 pub const term = @import("term.zig");
 pub const events = @import("event.zig");
 
-test "" {
+test {
     std.testing.refAllDecls(@This());
 }
