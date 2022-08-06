@@ -145,14 +145,15 @@ pub const Event = union(enum) {
 
 test "next" {
     const term = @import("main.zig").term;
-    const stdin = io.getStdIn();
 
-    var raw = try term.enableRawMode(stdin.handle, .blocking);
+    const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
+
+    var raw = try term.enableRawMode(tty.context.handle, .blocking);
     defer raw.disableRawMode() catch {};
 
     var i: usize = 0;
     while (i < 3) : (i += 1) {
-        const key = try next(stdin.reader());
+        const key = try next(tty);
         std.debug.print("\n\r{any}\n", .{key});
     }
 }

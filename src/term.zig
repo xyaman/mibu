@@ -94,8 +94,8 @@ pub fn getSize(fd: std.os.fd_t) !TermSize {
 }
 
 test "entering stdin raw mode" {
-    const stdin = io.getStdIn();
+    const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
 
-    var term = try enableRawMode(stdin.handle, .blocking); // stdin.handle is the same as os.STDIN_FILENO
+    var term = try enableRawMode(tty.context.handle, .blocking); // stdin.handle is the same as os.STDIN_FILENO
     defer term.disableRawMode() catch {};
 }
