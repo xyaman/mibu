@@ -29,28 +29,27 @@ const Key = union(enum) {
         writer: anytype,
     ) !void {
         _ = options;
-        if (fmt.len == 1 and fmt[0] == 's') {
-            try writer.writeAll("Key.");
+        _ = fmt;
+        try writer.writeAll("Key.");
 
-            switch (value) {
-                .ctrl => |c| try std.fmt.format(writer, "ctrl({u})", .{c}),
-                .alt => |c| try std.fmt.format(writer, "alt({u})", .{c}),
-                .char => |c| try std.fmt.format(writer, "char({u})", .{c}),
-                .fun => |d| try std.fmt.format(writer, "fun({d})", .{d}),
+        switch (value) {
+            .ctrl => |c| try std.fmt.format(writer, "ctrl({u})", .{c}),
+            .alt => |c| try std.fmt.format(writer, "alt({u})", .{c}),
+            .char => |c| try std.fmt.format(writer, "char({u})", .{c}),
+            .fun => |d| try std.fmt.format(writer, "fun({d})", .{d}),
 
-                // arrow keys
-                .up => try std.fmt.format(writer, "up", .{}),
-                .down => try std.fmt.format(writer, "down", .{}),
-                .left => try std.fmt.format(writer, "left", .{}),
-                .right => try std.fmt.format(writer, "right", .{}),
+            // arrow keys
+            .up => try std.fmt.format(writer, "up", .{}),
+            .down => try std.fmt.format(writer, "down", .{}),
+            .left => try std.fmt.format(writer, "left", .{}),
+            .right => try std.fmt.format(writer, "right", .{}),
 
-                // special keys
-                .esc => try std.fmt.format(writer, "esc", .{}),
-                .enter => try std.fmt.format(writer, "enter", .{}),
-                .delete => try std.fmt.format(writer, "delete", .{}),
+            // special keys
+            .esc => try std.fmt.format(writer, "esc", .{}),
+            .enter => try std.fmt.format(writer, "enter", .{}),
+            .delete => try std.fmt.format(writer, "delete", .{}),
 
-                else => try std.fmt.format(writer, "Not available yet", .{}),
-            }
+            else => try std.fmt.format(writer, "Not available yet", .{}),
         }
     }
 };
