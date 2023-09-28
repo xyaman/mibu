@@ -16,7 +16,6 @@ pub fn build(b: *std.build.Builder) void {
     test_step.dependOn(&main_tests.step);
 
     // examples
-    // const color = b.addExecutable("color", "examples/color.zig");
     const color = b.addExecutable(.{
         .name = "color",
         .root_source_file = .{ .path = "examples/color.zig" },
@@ -24,12 +23,11 @@ pub fn build(b: *std.build.Builder) void {
         .optimize = optimize,
     });
     color.addModule("mibu", mibu_module);
-    // b.installArtifact(color);
+    const color_step = b.addRunArtifact(color);
 
-    const color_step = b.step("color", "Run color example");
-    color_step.dependOn(&color.step);
+    const run_color_step = b.step("color", "Run color example");
+    run_color_step.dependOn(&color_step.step);
 
-    // const event = b.addExecutable("event", "examples/event.zig");
     const event = b.addExecutable(.{
         .name = "event",
         .root_source_file = .{ .path = "examples/event.zig" },
@@ -37,8 +35,8 @@ pub fn build(b: *std.build.Builder) void {
         .optimize = optimize,
     });
     event.addModule("mibu", mibu_module);
-    // b.installArtifact(event);
+    const event_step = b.addRunArtifact(event);
 
-    const event_step = b.step("event", "Run event example");
-    event_step.dependOn(&event.step);
+    const run_event_step = b.step("event", "Run event example");
+    run_event_step.dependOn(&event_step.step);
 }
