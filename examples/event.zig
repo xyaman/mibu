@@ -25,7 +25,7 @@ pub fn main() !void {
                 },
                 .ctrl => |c| switch (c) {
                     'c' => break,
-                    else => {},
+                    else => try stdout.writer().print("Key: {s}\n\r", .{k}),
                 },
                 else => try stdout.writer().print("Key: {s}\n\r", .{k}),
             },
