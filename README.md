@@ -2,7 +2,7 @@
 
 **mibu** is pure Zig library for low-level terminal manipulation.
 
-> Tested with zig version `0.10.0-dev.2978+803376708`
+> Tested with zig version `0.13.0`
 
 ## Features
 - Allocation free.
@@ -18,6 +18,15 @@
 ## Getting Started
 
 See the [examples directory](examples/)
+
+You can run the examples with the following command:
+```bash
+# Prints text with different colors
+zig build color
+
+# Prints what key you pressed, until you press `q` or `ctrl+c`
+zig build event
+```
 
 ## TODO
 

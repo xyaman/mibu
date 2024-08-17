@@ -1,33 +1,46 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
+pub fn build(b: *std.Build) void {
+    const mibu_mod = b.addModule("mibu", .{
+        .root_source_file = b.path("src/main.zig"),
+    });
+
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions();
+    const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary("mibu", "src/main.zig");
-    lib.setBuildMode(mode);
-    lib.install();
+    const lib_tests = b.addTest(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    const main_tests = b.addTest("src/main.zig");
-    main_tests.setBuildMode(mode);
+    const run_lib_tests = b.addRunArtifact(lib_tests);
 
     const test_step = b.step("test", "Run library tests");
-    test_step.dependOn(&main_tests.step);
+    test_step.dependOn(&run_lib_tests.step);
 
     // examples
-    const color = b.addExecutable("color", "examples/color.zig");
-    color.setTarget(target);
-    color.addPackagePath("mibu", "src/main.zig");
+    const examples = [_][]const u8{
+        "color",
+        "event",
+    };
 
-    const color_step = b.step("color", "Run color example");
-    color_step.dependOn(&color.run().step);
+    for (examples) |example_name| {
+        const example = b.addExecutable(.{
+            .name = example_name,
+            .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
+            .target = target,
+            .optimize = optimize,
+        });
 
-    const event = b.addExecutable("event", "examples/event.zig");
-    event.setTarget(target);
-    event.addPackagePath("mibu", "src/main.zig");
+        const install_example = b.addRunArtifact(example);
+        example.root_module.addImport(
+            "mibu",
+            mibu_mod,
+        );
 
-    const event_step = b.step("event", "Run event example");
-    event_step.dependOn(&event.run().step);
+        const example_step = b.step(example_name, b.fmt("Run {s} example", .{example_name}));
+        example_step.dependOn(&install_example.step);
+        example_step.dependOn(&example.step);
+    }
 }

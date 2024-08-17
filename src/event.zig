@@ -69,7 +69,7 @@ pub fn next(in: anytype) !Event {
 
     const view = try std.unicode.Utf8View.init(buf[0..c]);
     var iter = view.iterator();
-    var event: Event = .none;
+    const event: Event = .none;
 
     // TODO: Find a better way to iterate buffer
     if (iter.nextCodepoint()) |c0| switch (c0) {

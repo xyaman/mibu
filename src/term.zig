@@ -1,6 +1,7 @@
 const std = @import("std");
 const os = std.os;
 const io = std.io;
+const posix = std.posix;
 
 /// ReadMode defines the read behaivour when using raw mode
 pub const ReadMode = enum {
@@ -8,9 +9,9 @@ pub const ReadMode = enum {
     nonblocking,
 };
 
-pub fn enableRawMode(handle: os.system.fd_t, blocking: ReadMode) !RawTerm {
+pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
     // var original_termios = try os.tcgetattr(handle);
-    var original_termios = try os.tcgetattr(handle);
+    const original_termios = try posix.tcgetattr(handle);
 
     var termios = original_termios;
 
@@ -30,24 +31,34 @@ pub fn enableRawMode(handle: os.system.fd_t, blocking: ReadMode) !RawTerm {
     // Miscellaneous flags (most modern terminal already have them disabled)
     // BRKINT, INPCK, ISTRIP and CS8
 
-    termios.iflag &= ~(os.system.BRKINT | os.system.ICRNL | os.system.INPCK | os.system.ISTRIP | os.system.IXON);
-    termios.oflag &= ~(os.system.OPOST);
-    termios.cflag |= (os.system.CS8);
-    termios.lflag &= ~(os.system.ECHO | os.system.ICANON | os.system.IEXTEN | os.system.ISIG);
+    termios.iflag.BRKINT = false;
+    termios.iflag.ICRNL = false;
+    termios.iflag.INPCK = false;
+    termios.iflag.ISTRIP = false;
+    termios.iflag.IXON = false;
+
+    termios.oflag.OPOST = false;
+
+    termios.cflag.CSIZE = .CS8;
+
+    termios.lflag.ECHO = false;
+    termios.lflag.ICANON = false;
+    termios.lflag.IEXTEN = false;
+    termios.lflag.ISIG = false;
 
     switch (blocking) {
         // Wait until it reads at least one byte
-        .blocking => termios.cc[os.system.V.MIN] = 1,
+        .blocking => termios.cc[@intFromEnum(posix.V.MIN)] = 1,
 
         // Don't wait
-        .nonblocking => termios.cc[os.system.V.MIN] = 0,
+        .nonblocking => termios.cc[@intFromEnum(posix.V.MIN)] = 0,
     }
 
     // Wait 100 miliseconds at maximum.
-    termios.cc[os.system.V.TIME] = 1;
+    termios.cc[@intFromEnum(posix.V.TIME)] = 1;
 
     // apply changes
-    try os.tcsetattr(handle, .FLUSH, termios);
+    try posix.tcsetattr(handle, .FLUSH, termios);
 
     return RawTerm{
         .orig_termios = original_termios,
@@ -58,16 +69,16 @@ pub fn enableRawMode(handle: os.system.fd_t, blocking: ReadMode) !RawTerm {
 /// A raw terminal representation, you can enter terminal raw mode
 /// using this struct. Raw mode is essential to create a TUI.
 pub const RawTerm = struct {
-    orig_termios: os.termios,
+    orig_termios: std.posix.termios,
 
     /// The OS-specific file descriptor or file handle.
-    handle: os.system.fd_t,
+    handle: os.linux.fd_t,
 
     const Self = @This();
 
     /// Returns to the previous terminal state
     pub fn disableRawMode(self: *Self) !void {
-        try os.tcsetattr(self.handle, .FLUSH, self.orig_termios);
+        try posix.tcsetattr(self.handle, .FLUSH, self.orig_termios);
     }
 };
 
@@ -82,7 +93,7 @@ pub fn getSize(fd: std.os.fd_t) !TermSize {
     var ws: std.os.system.winsize = undefined;
 
     // https://github.com/ziglang/zig/blob/master/lib/std/os/linux/errno/generic.zig
-    const err = std.c.ioctl(fd, os.system.T.IOCGWINSZ, @ptrToInt(&ws));
+    const err = std.c.ioctl(fd, os.system.T.IOCGWINSZ, @intFromPtr(&ws));
     if (std.os.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }

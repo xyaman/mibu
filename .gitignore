@@ -1,4 +1,2 @@
-**/zig-cache/*
+.zig-cache
 /zig-out
-.zigmod
-deps.zig
