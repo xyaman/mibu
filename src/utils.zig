@@ -35,14 +35,11 @@ pub const clear_line_to_cursor = "1K";
 /// Clear entire line
 pub const clear_line = "2K";
 
-/// Returns the ANSI sequence as a []const u8
-pub const reset = "0m";
-
 /// Returns the ANSI sequence to set bold mode
 pub const style_bold = "1m";
 pub const style_no_bold = "22m";
 
-/// Returnstyle_s the ANSI sequence to set dim mode
+/// Returns the ANSI sequence to set dim mode
 pub const style_dim = "2m";
 pub const style_no_dim = "22m";
 
