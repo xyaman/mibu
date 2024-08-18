@@ -118,7 +118,8 @@ const Key = union(enum) {
 };
 
 /// Returns the next event received.
-/// If raw term is `.blocking` or term is canonical it will block until read at least one event.
+/// When used with canonical mode, the user needs to press enter to receive the event.
+/// When raw term is `.blocking` it will block until read at least one event.
 /// otherwise it will return `.none` if it didnt read any event
 ///
 /// `in`: needs to be reader
