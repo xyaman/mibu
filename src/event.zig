@@ -8,6 +8,7 @@ const Key = union(enum) {
     char: u21,
     ctrl: u21,
     alt: u21,
+    ctrl_alt: u21,
     fun: u8,
 
     // arrow keys
@@ -35,6 +36,7 @@ const Key = union(enum) {
         switch (value) {
             .ctrl => |c| try std.fmt.format(writer, "ctrl({u})", .{c}),
             .alt => |c| try std.fmt.format(writer, "alt({u})", .{c}),
+            .ctrl_alt => |c| try std.fmt.format(writer, "ctrl_alt({u})", .{c}),
             .char => |c| try std.fmt.format(writer, "char({u})", .{c}),
             .fun => |d| try std.fmt.format(writer, "fun({d})", .{d}),
 
@@ -71,6 +73,8 @@ pub fn next(in: anytype) !Event {
     var iter = view.iterator();
     const event: Event = .none;
 
+    // std.debug.print("{any}\n", .{view});
+
     // TODO: Find a better way to iterate buffer
     if (iter.nextCodepoint()) |c0| switch (c0) {
         '\x1b' => {
@@ -85,6 +89,8 @@ pub fn next(in: anytype) !Event {
                 '[' => {
                     return try parse_csi(buf[2..c]);
                 },
+
+                '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
 
                 // alt key
                 else => {
