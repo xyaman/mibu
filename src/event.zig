@@ -17,9 +17,40 @@ const Key = union(enum) {
     left: void,
     right: void,
 
+    // shift + arrow keys
+    shift_up: void,
+    shift_down: void,
+    shift_left: void,
+    shift_right: void,
+
+    // ctrl + arrow keys
+    ctrl_up: void,
+    ctrl_down: void,
+    ctrl_left: void,
+    ctrl_right: void,
+
+    // ctrl + shift + arrow keys
+    ctrl_shift_up: void,
+    ctrl_shift_down: void,
+    ctrl_shift_left: void,
+    ctrl_shift_right: void,
+
+    // ctrl + alt + arrow keys
+    ctrl_alt_up: void,
+    ctrl_alt_down: void,
+    ctrl_alt_left: void,
+    ctrl_alt_right: void,
+
+    // special keys
     esc: void,
+    backspace: void,
     delete: void,
+    insert: void,
     enter: void,
+    page_up: void,
+    page_down: void,
+    home: void,
+    end: void,
 
     __non_exhaustive: void,
 
@@ -46,10 +77,40 @@ const Key = union(enum) {
             .left => try std.fmt.format(writer, "left", .{}),
             .right => try std.fmt.format(writer, "right", .{}),
 
+            // shift + arrow keys
+            .shift_up => try std.fmt.format(writer, "shift_up", .{}),
+            .shift_down => try std.fmt.format(writer, "shift_down", .{}),
+            .shift_left => try std.fmt.format(writer, "shift_left", .{}),
+            .shift_right => try std.fmt.format(writer, "shift_right", .{}),
+
+            // ctrl + arrow keys
+            .ctrl_up => try std.fmt.format(writer, "ctrl_up", .{}),
+            .ctrl_down => try std.fmt.format(writer, "ctrl_down", .{}),
+            .ctrl_left => try std.fmt.format(writer, "ctrl_left", .{}),
+            .ctrl_right => try std.fmt.format(writer, "ctrl_right", .{}),
+
+            // ctrl + shift + arrow keys
+            .ctrl_shift_up => try std.fmt.format(writer, "ctrl_shift_up", .{}),
+            .ctrl_shift_down => try std.fmt.format(writer, "ctrl_shift_down", .{}),
+            .ctrl_shift_left => try std.fmt.format(writer, "ctrl_shift_left", .{}),
+            .ctrl_shift_right => try std.fmt.format(writer, "ctrl_shift_right", .{}),
+
+            // ctrl + alt + arrow keys
+            .ctrl_alt_up => try std.fmt.format(writer, "ctrl_alt_up", .{}),
+            .ctrl_alt_down => try std.fmt.format(writer, "ctrl_alt_down", .{}),
+            .ctrl_alt_left => try std.fmt.format(writer, "ctrl_alt_left", .{}),
+            .ctrl_alt_right => try std.fmt.format(writer, "ctrl_alt_right", .{}),
+
             // special keys
             .esc => try std.fmt.format(writer, "esc", .{}),
             .enter => try std.fmt.format(writer, "enter", .{}),
+            .backspace => try std.fmt.format(writer, "backspace", .{}),
             .delete => try std.fmt.format(writer, "delete", .{}),
+            .insert => try std.fmt.format(writer, "insert", .{}),
+            .page_up => try std.fmt.format(writer, "page_up", .{}),
+            .page_down => try std.fmt.format(writer, "page_down", .{}),
+            .home => try std.fmt.format(writer, "home", .{}),
+            .end => try std.fmt.format(writer, "end", .{}),
 
             else => try std.fmt.format(writer, "Not available yet", .{}),
         }
@@ -72,8 +133,6 @@ pub fn next(in: anytype) !Event {
     const view = try std.unicode.Utf8View.init(buf[0..c]);
     var iter = view.iterator();
     const event: Event = .none;
-
-    // std.debug.print("{any}\n", .{view});
 
     // TODO: Find a better way to iterate buffer
     if (iter.nextCodepoint()) |c0| switch (c0) {
@@ -100,11 +159,14 @@ pub fn next(in: anytype) !Event {
                 return Event{ .key = .esc };
             }
         },
+
+        // tab is equal to ctrl-i
+
         // ctrl keys (avoids ctrl-m)
         '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
 
         // special chars
-        '\x7f' => return Event{ .key = .delete },
+        '\x7f' => return Event{ .key = .backspace },
         '\x0D' => return Event{ .key = .enter },
 
         // chars and shift + chars
@@ -122,19 +184,77 @@ fn parse_csi(buf: []const u8) !Event {
         'C' => return Event{ .key = .right },
         'D' => return Event{ .key = .left },
 
-        '1'...'2' => {
+        '1' => {
             switch (buf[1]) {
                 '5' => return Event{ .key = Key{ .fun = 5 } },
                 '7' => return Event{ .key = Key{ .fun = 6 } },
                 '8' => return Event{ .key = Key{ .fun = 7 } },
                 '9' => return Event{ .key = Key{ .fun = 8 } },
+                '~' => return Event{ .key = .home },
+                // shift + arrow keys
+                ';' => {
+                    switch (buf[2]) {
+                        '2' => {
+                            switch (buf[3]) {
+                                'A' => return Event{ .key = .shift_up },
+                                'B' => return Event{ .key = .shift_down },
+                                'C' => return Event{ .key = .shift_right },
+                                'D' => return Event{ .key = .shift_left },
+                                else => {},
+                            }
+                        },
+                        '5' => {
+                            switch (buf[3]) {
+                                'A' => return Event{ .key = .ctrl_up },
+                                'B' => return Event{ .key = .ctrl_down },
+                                'C' => return Event{ .key = .ctrl_right },
+                                'D' => return Event{ .key = .ctrl_left },
+                                else => {},
+                            }
+                        },
+                        '6' => {
+                            switch (buf[3]) {
+                                'A' => return Event{ .key = .ctrl_shift_up },
+                                'B' => return Event{ .key = .ctrl_shift_down },
+                                'C' => return Event{ .key = .ctrl_shift_right },
+                                'D' => return Event{ .key = .ctrl_shift_left },
+                                else => {},
+                            }
+                        },
+
+                        '7' => {
+                            switch (buf[3]) {
+                                'A' => return Event{ .key = .ctrl_alt_up },
+                                'B' => return Event{ .key = .ctrl_alt_down },
+                                'C' => return Event{ .key = .ctrl_alt_right },
+                                'D' => return Event{ .key = .ctrl_alt_left },
+                                else => {},
+                            }
+                        },
+
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        },
+
+        '2' => {
+            switch (buf[1]) {
                 '0' => return Event{ .key = Key{ .fun = 9 } },
                 '1' => return Event{ .key = Key{ .fun = 10 } },
                 '3' => return Event{ .key = Key{ .fun = 11 } },
                 '4' => return Event{ .key = Key{ .fun = 12 } },
+                '~' => return Event{ .key = .insert },
                 else => {},
             }
         },
+
+        '3' => return Event{ .key = .delete },
+        '4' => return Event{ .key = .end },
+        '5' => return Event{ .key = .page_up },
+        '6' => return Event{ .key = .page_down },
+
         else => {},
     }
 
