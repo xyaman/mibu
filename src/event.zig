@@ -117,6 +117,39 @@ const Key = union(enum) {
     }
 };
 
+pub const MouseButton = enum {
+    left,
+    middle,
+    right,
+    release,
+    scroll_up,
+    scroll_down,
+
+    __non_exhaustive,
+};
+
+pub const Mouse = struct {
+    x: u16,
+    y: u16,
+    button: MouseButton,
+    is_alt: bool,
+    is_shift: bool,
+    is_ctrl: bool,
+
+    pub fn format(
+        value: Mouse,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+        _ = fmt;
+        try writer.writeAll("Mouse.");
+
+        try writer.print("x: {d}, y: {d}, button: {any}, is_alt: {any}, is_shift: {any}, is_ctrl: {any}", .{ value.x, value.y, value.button, value.is_alt, value.is_shift, value.is_ctrl });
+    }
+};
+
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is `.blocking` it will block until read at least one event.
@@ -131,9 +164,20 @@ pub fn next(in: anytype) !Event {
         return .none;
     }
 
-    const view = try std.unicode.Utf8View.init(buf[0..c]);
+    // const view = try std.unicode.Utf8View.init(buf[0..c]);
+
+    // This is hacky to make mouse code work
+    // utf8 view failes to parse mouse events, dont know why, need to check it later
+    // TODO: check why utf8 view fails to parse mouse events
+    // It's related with the value, if its greater than 127, it fails
+    const view = std.unicode.Utf8View.init(buf[0..c]) catch {
+        return parse_csi(buf[2..c]);
+    };
+
     var iter = view.iterator();
     const event: Event = .none;
+
+    // std.debug.print("\n\r{any}\n", .{view});
 
     // TODO: Find a better way to iterate buffer
     if (iter.nextCodepoint()) |c0| switch (c0) {
@@ -256,16 +300,97 @@ fn parse_csi(buf: []const u8) !Event {
         '5' => return Event{ .key = .page_up },
         '6' => return Event{ .key = .page_down },
 
+        // Mouse Events
+        // On button press, xterm sends CSI MCbCxCy (6 characters) = "\x1b[MbCxCy"
+        // -   Cb is button-1, where button is 1, 2 or 3.
+        // -   Cx and Cy are the x and y coordinates of the mouse when the button
+        //     was pressed.
+        'M' => {
+            const x = buf[2];
+            const y = buf[3];
+
+            var mouse_event = try parse_mouse_action(buf[1]);
+            // x and y are 1-based
+            mouse_event.x = x - 1;
+            mouse_event.y = y - 1;
+
+            return Event{ .mouse = mouse_event };
+        },
+
         else => {},
     }
 
     return .not_supported;
 }
 
+fn parse_mouse_action(action: u8) !Mouse {
+    // Normal tracking mode sends an escape sequence on both button press and
+    // release.  Modifier key (shift, ctrl, meta) information is also sent.  It
+    // is enabled by specifying parameter 1000 to DECSET.  On button press or
+    // release, xterm sends CSI M CbCxCy.
+    //
+    // o   The low two bits of Cb encode button information:
+    //
+    //               0=MB1 pressed,
+    //               1=MB2 pressed,
+    //               2=MB3 pressed, and
+    //               3=release.
+    //
+    // o   The next three bits encode the modifiers which were down when the
+    //     button was pressed and are added together:
+    //
+    //               4=Shift,
+    //               8=Meta, and
+    //               16=Control.
+
+    var mouse_event = Mouse{
+        .x = 0,
+        .y = 0,
+        .button = MouseButton.left,
+        .is_alt = false,
+        .is_shift = false,
+        .is_ctrl = false,
+    };
+
+    // modifiers
+    mouse_event.is_shift = action & 0b0000_01000 != 0;
+    mouse_event.is_alt = action & 0b0000_1000 != 0;
+    mouse_event.is_ctrl = action & 0b0001_0000 != 0;
+
+    if (action & 0b0100_0000 != 0) {
+        switch (action & 0b0000_0011) {
+            0 => mouse_event.button = MouseButton.scroll_up,
+            else => mouse_event.button = MouseButton.scroll_down,
+        }
+
+        return mouse_event;
+    }
+
+    // button clicks
+    mouse_event.button = switch (action & 0b0000_0011) {
+        0 => MouseButton.left,
+        1 => MouseButton.middle,
+        2 => MouseButton.right,
+        3 => MouseButton.release,
+
+        // TODO: Handle this case
+        else => MouseButton.left,
+    };
+
+    return mouse_event;
+}
+
 pub const Event = union(enum) {
     key: Key,
+
+    // TODO: Signal = SIGWINCH
+    // Probably, we will need a separate thread to handle signals
     resize,
     not_supported,
+
+    // mouse: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
+    mouse: Mouse,
+
     none,
 };
 

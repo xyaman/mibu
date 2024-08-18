@@ -67,6 +67,17 @@ pub const style_no_invisible = "28m";
 pub const style_strikethrough = "9m";
 pub const style_no_strikethrough = "29m";
 
+// When enable_mouse_tracking is sent to the terminal
+// mouse events will be received
+pub const enable_mouse_tracking = "\x1b[?1003h";
+
+// When disable_mouse_tracking is sent to the terminal
+// mouse events will stop being received. Needs to be
+// called after enable_mouse_tracking, otherwise the
+// terminal will not stop sending mouse events, even when the program
+// has finished.
+pub const disable_mouse_tracking = "\x1b[?1003l";
+
 pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
     const str = "\x1b[" ++ fmt;
     return std.fmt.comptimePrint(str, args);

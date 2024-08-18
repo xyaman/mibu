@@ -8,12 +8,13 @@
 - Allocation free.
 - UTF-8 support.
 - Style (bold, italic, underline, etc).
-- Raw mode.
+- Termios / Raw mode.
 - 8-16 colors.
 - True Color (24-bit RGB).
 - Cursor controls.
 - Clear(Erase) functions.
 - Key events.
+- Partial Mouse events. (Click, Scroll, Release)
 
 ## Getting Started
 
@@ -30,5 +31,5 @@ zig build event
 
 ## TODO
 
-- Support mouse events
-- Support more keys events
+- Support mouse move events
+- Support all keys events
