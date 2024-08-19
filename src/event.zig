@@ -125,6 +125,9 @@ pub const MouseButton = enum {
     scroll_up,
     scroll_down,
 
+    move,
+    move_rightclick,
+
     __non_exhaustive,
 };
 
@@ -309,7 +312,9 @@ fn parse_csi(buf: []const u8) !Event {
             const x = buf[2];
             const y = buf[3];
 
-            var mouse_event = try parse_mouse_action(buf[1]);
+            var mouse_event = parse_mouse_action(buf[1]) catch {
+                return .not_supported;
+            };
             // x and y are 1-based
             mouse_event.x = x - 1;
             mouse_event.y = y - 1;
@@ -358,9 +363,22 @@ fn parse_mouse_action(action: u8) !Mouse {
     mouse_event.is_ctrl = action & 0b0001_0000 != 0;
 
     if (action & 0b0100_0000 != 0) {
+        // Click and move mouse results into the following events:
+        // 1. Left/Middle/Right click
+        // 2. Scroll up/down (where left click is scroll up and middle/right click is scroll down)
+        //
+        // So to get the "drag" event, it needs to be handled in the frontend
+        // or the main application.
+
+        // EDIT: ok, so right click and move has an own event
+        // TODO: check mouse
+
         switch (action & 0b0000_0011) {
             0 => mouse_event.button = MouseButton.scroll_up,
-            else => mouse_event.button = MouseButton.scroll_down,
+            1 => mouse_event.button = MouseButton.scroll_down,
+            2 => mouse_event.button = MouseButton.move_rightclick,
+            3 => mouse_event.button = MouseButton.move,
+            else => return error.InvalidMouseButton,
         }
 
         return mouse_event;
@@ -373,8 +391,7 @@ fn parse_mouse_action(action: u8) !Mouse {
         2 => MouseButton.right,
         3 => MouseButton.release,
 
-        // TODO: Handle this case
-        else => MouseButton.left,
+        else => return error.InvalidMouseButton,
     };
 
     return mouse_event;

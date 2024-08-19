@@ -31,5 +31,11 @@ zig build event
 
 ## TODO
 
-- Support mouse move events
+- Mouse events
+    - [x] Left, middle, right click
+    - [x] Scroll up, down
+    - [x] Release
+    - [x] Modifiers (shift, ctrl, alt)
+    - [x] Move 
+    - [ ] Click and move (drag)
 - Support all keys events
