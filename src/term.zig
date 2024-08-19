@@ -3,6 +3,8 @@ const os = std.os;
 const io = std.io;
 const posix = std.posix;
 
+const builtin = @import("builtin");
+
 /// ReadMode defines the read behaivour when using raw mode
 pub const ReadMode = enum {
     blocking,
@@ -89,12 +91,16 @@ pub const TermSize = struct {
 };
 
 /// Get the terminal size, use `fd` equals to 0 use stdin
-pub fn getSize(fd: std.os.fd_t) !TermSize {
-    var ws: std.os.system.winsize = undefined;
+pub fn getSize(fd: posix.fd_t) !TermSize {
+    if (builtin.os.tag != .linux) {
+        return error.UnsupportedPlatform;
+    }
+
+    var ws: posix.winsize = undefined;
 
     // https://github.com/ziglang/zig/blob/master/lib/std/os/linux/errno/generic.zig
-    const err = std.c.ioctl(fd, os.system.T.IOCGWINSZ, @intFromPtr(&ws));
-    if (std.os.errno(err) != .SUCCESS) {
+    const err = std.os.linux.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
+    if (posix.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }
 
@@ -107,6 +113,10 @@ pub fn getSize(fd: std.os.fd_t) !TermSize {
 test "entering stdin raw mode" {
     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
 
-    var term = try enableRawMode(tty.context.handle, .blocking); // stdin.handle is the same as os.STDIN_FILENO
-    defer term.disableRawMode() catch {};
+    const termsize = try getSize(tty.context.handle);
+    std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
+
+    // stdin.handle is the same as os.STDIN_FILENO
+    // var term = try enableRawMode(tty.context.handle, .blocking);
+    // defer term.disableRawMode() catch {};
 }
