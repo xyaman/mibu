@@ -16,6 +16,39 @@
 - Key events.
 - Partial Mouse events. (Click, Scroll, Release)
 
+## How to use
+
+First we add the library as a dependency in our `build.zig.zon` file.
+```zig
+.dependencies = .{
+    .string = .{
+        .url = "https://github.com/JakubSzark/zig-string/archive/refs/heads/master.tar.gz",
+        //the correct hash will be suggested by the zig compiler, you can copy it from there
+    }
+}
+```
+
+And we add it to `build.zig` file.
+```zig
+const mibu_dep = b.dependency("mibu", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+exe.root_module.addImport("mibu", mibu_dep.module("mibu"));
+```
+
+Now we can use the library in our code.
+```zig
+const std = @import("std");
+const mibu = @import("mibu");
+const color = mibu.color;
+
+pub fn main() void {
+    std.debug.print("{s}Hello World in purple!\n", .{color.print.bgRGB(97, 37, 160});
+}
+```
+
 ## Getting Started
 
 See the [examples directory](examples/)
