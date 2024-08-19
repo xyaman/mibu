@@ -14,6 +14,7 @@ pub fn main() !void {
     var raw_term = try term.enableRawMode(stdin.handle, .blocking);
     defer raw_term.disableRawMode() catch {};
 
+    // To listen mouse events, we need to enable mouse tracking
     try stdout.writer().print("{s}", .{utils.enable_mouse_tracking});
     defer stdout.writer().print("{s}", .{utils.disable_mouse_tracking}) catch {};
 
@@ -34,8 +35,9 @@ pub fn main() !void {
                 },
                 else => try stdout.writer().print("Key: {s}\n\r", .{k}),
             },
-            // ex. mouse events not supported yet
             .mouse => |m| try stdout.writer().print("Mouse: {s}\n\r", .{m}),
+
+            // ex. mouse events not supported yet
             else => try stdout.writer().print("Event: {any}\n\r", .{next}),
         }
     }
