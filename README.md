@@ -22,7 +22,7 @@ First we add the library as a dependency in our `build.zig.zon` file.
 ```zig
 .dependencies = .{
     .string = .{
-        .url = "https://github.com/JakubSzark/zig-string/archive/refs/heads/master.tar.gz",
+        .url = "https://github.com/xyaman/mibu/archive/refs/heads/main.zip",
         //the correct hash will be suggested by the zig compiler, you can copy it from there
     }
 }
@@ -45,7 +45,7 @@ const mibu = @import("mibu");
 const color = mibu.color;
 
 pub fn main() void {
-    std.debug.print("{s}Hello World in purple!\n", .{color.print.bgRGB(97, 37, 160});
+    std.debug.print("{s}Hello World in purple!\n", .{color.print.bgRGB(97, 37, 160)});
 }
 ```
 
