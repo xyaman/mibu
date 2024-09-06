@@ -92,14 +92,13 @@ pub const TermSize = struct {
 
 /// Get the terminal size, use `fd` equals to 0 use stdin
 pub fn getSize(fd: posix.fd_t) !TermSize {
-    if (builtin.os.tag != .linux) {
+    if (builtin.os.tag != .linux and builtin.os.tag != .macos) {
         return error.UnsupportedPlatform;
     }
 
     var ws: posix.winsize = undefined;
 
-    // https://github.com/ziglang/zig/blob/master/lib/std/os/linux/errno/generic.zig
-    const err = std.os.linux.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
+    const err = std.posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
     if (posix.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }
