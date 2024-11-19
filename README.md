@@ -1,3 +1,6 @@
+> [!WARNING]
+> This library is a WIP and may have breaking changes and bugs.
+
 #  mibu
 
 **mibu** is pure Zig library for low-level terminal manipulation.
