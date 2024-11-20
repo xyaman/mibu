@@ -2,7 +2,6 @@ const std = @import("std");
 const fmt = std.fmt;
 
 const lib = @import("main.zig");
-const term = lib.term;
 const utils = lib.utils;
 
 pub const print = struct {

@@ -5,14 +5,7 @@ const posix = std.posix;
 
 const builtin = @import("builtin");
 
-/// ReadMode defines the read behaivour when using raw mode
-pub const ReadMode = enum {
-    blocking,
-    nonblocking,
-};
-
-pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
-    // var original_termios = try os.tcgetattr(handle);
+pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
     const original_termios = try posix.tcgetattr(handle);
 
     var termios = original_termios;
@@ -32,6 +25,21 @@ pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
 
     // Miscellaneous flags (most modern terminal already have them disabled)
     // BRKINT, INPCK, ISTRIP and CS8
+    
+    // TCSETATTR(3)
+    // #define _GNU_SOURCE
+    // #include <termios.h>
+    //
+    // void cfmakeraw(struct termios *t)
+    // {
+    // 	t->c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
+    // 	t->c_oflag &= ~OPOST;
+    // 	t->c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
+    // 	t->c_cflag &= ~(CSIZE|PARENB);
+    // 	t->c_cflag |= CS8;
+    // 	t->c_cc[VMIN] = 1;
+    // 	t->c_cc[VTIME] = 0;
+    // }
 
     termios.iflag.BRKINT = false;
     termios.iflag.ICRNL = false;
@@ -48,16 +56,9 @@ pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
     termios.lflag.IEXTEN = false;
     termios.lflag.ISIG = false;
 
-    switch (blocking) {
-        // Wait until it reads at least one byte
-        .blocking => termios.cc[@intFromEnum(posix.V.MIN)] = 1,
 
-        // Don't wait
-        .nonblocking => termios.cc[@intFromEnum(posix.V.MIN)] = 0,
-    }
-
-    // Wait 100 miliseconds at maximum.
-    termios.cc[@intFromEnum(posix.V.TIME)] = 1;
+    termios.cc[@intFromEnum(posix.V.MIN)] = 1;
+    termios.cc[@intFromEnum(posix.V.TIME)] = 0;
 
     // apply changes
     try posix.tcsetattr(handle, .FLUSH, termios);
@@ -98,6 +99,7 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
 
     var ws: posix.winsize = undefined;
 
+    // tty_ioctl(4)
     const err = std.posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
     if (posix.errno(err) != .SUCCESS) {
         return error.IoctlError;

@@ -3,6 +3,20 @@ const io = std.io;
 
 const cursor = @import("cursor.zig");
 
+pub const Event = union(enum) {
+    key: Key,
+
+    // mouse: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
+    mouse: Mouse,
+
+    // TODO: Signal = SIGWINCH
+    // Probably, we will need a separate thread to handle signals
+    resize,
+    not_supported,
+
+    none,
+};
+
 const Key = union(enum) {
     // unicode character
     char: u21,
@@ -117,20 +131,6 @@ const Key = union(enum) {
     }
 };
 
-pub const MouseButton = enum {
-    left,
-    middle,
-    right,
-    release,
-    scroll_up,
-    scroll_down,
-
-    move,
-    move_rightclick,
-
-    __non_exhaustive,
-};
-
 pub const Mouse = struct {
     x: u16,
     y: u16,
@@ -153,10 +153,41 @@ pub const Mouse = struct {
     }
 };
 
+pub const MouseButton = enum {
+    left,
+    middle,
+    right,
+    release,
+    scroll_up,
+    scroll_down,
+    move,
+    move_rightclick,
+
+    __non_exhaustive,
+};
+
+/// Returns the next event received. If no event is received within the timeout, 
+/// it returns `.none`. Timeout is in miliseconds
+///
+/// When used in canonical mode, the user needs to press Enter to receive the event.
+/// When raw terminal mode is activated, the function waits up to the specified timeout 
+/// for at least one event before returning.
+pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
+    var polls: [1]std.posix.pollfd = .{.{
+        .fd = in.handle,
+        .events = std.posix.POLL.IN,
+        .revents = 0,
+    }};
+    if ((try std.posix.poll(&polls, timeout_ms)) > 0) {
+        return next(in);
+    }
+
+    return .none;
+}
+
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
-/// When raw term is `.blocking` it will block until read at least one event.
-/// otherwise it will return `.none` if it didnt read any event
+/// When raw term is activated it will block until read at least one event.
 ///
 /// `in`: needs to be reader
 pub fn next(in: anytype) !Event {
@@ -167,14 +198,18 @@ pub fn next(in: anytype) !Event {
         return .none;
     }
 
-    // const view = try std.unicode.Utf8View.init(buf[0..c]);
+    return parseEvent(&buf, c);
+}
 
+fn parseEvent(buf: []u8, len: usize) !Event {
+    // const view = try std.unicode.Utf8View.init(buf[0..c]);
+    
     // This is hacky to make mouse code work
     // utf8 view failes to parse mouse events, dont know why, need to check it later
     // TODO: check why utf8 view fails to parse mouse events
     // It's related with the value, if its greater than 127, it fails
-    const view = std.unicode.Utf8View.init(buf[0..c]) catch {
-        return parse_csi(buf[2..c]);
+    const view = std.unicode.Utf8View.init(buf[0..len]) catch {
+        return parse_csi(buf[2..len]);
     };
 
     var iter = view.iterator();
@@ -194,7 +229,7 @@ pub fn next(in: anytype) !Event {
 
                 // csi
                 '[' => {
-                    return try parse_csi(buf[2..c]);
+                    return try parse_csi(buf[2..len]);
                 },
 
                 '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
@@ -397,26 +432,12 @@ fn parse_mouse_action(action: u8) !Mouse {
     return mouse_event;
 }
 
-pub const Event = union(enum) {
-    key: Key,
-
-    // TODO: Signal = SIGWINCH
-    // Probably, we will need a separate thread to handle signals
-    resize,
-    not_supported,
-
-    // mouse: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
-    mouse: Mouse,
-
-    none,
-};
-
 test "next" {
-    const term = @import("main.zig").term;
+    const termios = @import("main.zig").termios;
 
     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
 
-    var raw = try term.enableRawMode(tty.context.handle, .blocking);
+    var raw = try termios.enableRawMode(tty.context.handle);
     defer raw.disableRawMode() catch {};
 
     var i: usize = 0;
