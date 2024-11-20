@@ -75,3 +75,7 @@ zig build event
     - [x] Move 
     - [ ] Click and move (drag)
 - Support all keys events
+
+# Projects that use `mibu`
+- [zigtris](https://github.com/ringtailsoftware/zigtris)
+- [chip8 (wip)](https://github.com/xyaman/chip8)
