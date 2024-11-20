@@ -9,6 +9,7 @@ const builtin = @import("builtin");
 pub const ReadMode = enum {
     blocking,
     nonblocking,
+    nowait,
 };
 
 pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
@@ -53,11 +54,14 @@ pub fn enableRawMode(handle: posix.fd_t, blocking: ReadMode) !RawTerm {
         .blocking => termios.cc[@intFromEnum(posix.V.MIN)] = 1,
 
         // Don't wait
-        .nonblocking => termios.cc[@intFromEnum(posix.V.MIN)] = 0,
+        .nonblocking, .nowait => termios.cc[@intFromEnum(posix.V.MIN)] = 0,
     }
 
     // Wait 100 miliseconds at maximum.
-    termios.cc[@intFromEnum(posix.V.TIME)] = 1;
+    switch (blocking) {
+        .blocking, .nonblocking => termios.cc[@intFromEnum(posix.V.TIME)] = 1,
+        .nowait => termios.cc[@intFromEnum(posix.V.TIME)] = 0,
+    }
 
     // apply changes
     try posix.tcsetattr(handle, .FLUSH, termios);

@@ -156,7 +156,9 @@ pub const Mouse = struct {
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is `.blocking` it will block until read at least one event.
-/// otherwise it will return `.none` if it didnt read any event
+/// When raw term is `.nonblocking` it will return immediately if an event occurs, else wait up to 0.1s
+/// When raw term is `.nowait` it will return immediately whether an event occurs or not
+/// it will return `.none` if it didnt read any event
 ///
 /// `in`: needs to be reader
 pub fn next(in: anytype) !Event {
