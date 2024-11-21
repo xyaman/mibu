@@ -3,6 +3,8 @@ const os = std.os;
 const io = std.io;
 const posix = std.posix;
 
+const utils = @import("utils.zig");
+
 const builtin = @import("builtin");
 
 pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
@@ -93,6 +95,17 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
         .width = ws.ws_col,
         .height = ws.ws_row,
     };
+}
+/// Switches to an alternate screen mode in the console. 
+/// `out`: needs to be writer
+pub fn enterAlternateScreen(out: anytype) !void {
+    try out.print("{s}", .{utils.comptimeCsi("?1049h", .{})});
+}
+
+/// Returns the console to its normal screen mode after using the alternate screen mode.
+/// `out`: needs to be writer
+pub fn exitAlternateScreen(out: anytype) !void {
+    try out.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }
 
 test "entering stdin raw mode" {

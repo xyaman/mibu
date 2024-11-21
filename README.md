@@ -63,6 +63,8 @@ zig build color
 
 # Prints what key you pressed, until you press `q` or `ctrl+c`
 zig build event
+
+zig build alternate_screen
 ```
 
 ## TODO

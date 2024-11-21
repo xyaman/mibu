@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) void {
     const examples = [_][]const u8{
         "color",
         "event",
+        "alternate_screen",
     };
 
     for (examples) |example_name| {
