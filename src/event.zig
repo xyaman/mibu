@@ -193,15 +193,11 @@ pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
 pub fn next(in: anytype) !Event {
     // TODO: Check buffer size
     var buf: [20]u8 = undefined;
-    const c = try in.read(&buf);
-    if (c == 0) {
+    const len = try in.read(&buf);
+    if (len == 0) {
         return .none;
     }
 
-    return parseEvent(&buf, c);
-}
-
-fn parseEvent(buf: []u8, len: usize) !Event {
     // const view = try std.unicode.Utf8View.init(buf[0..c]);
     
     // This is hacky to make mouse code work
@@ -433,11 +429,11 @@ fn parse_mouse_action(action: u8) !Mouse {
 }
 
 test "next" {
-    const termios = @import("main.zig").termios;
+    const term = @import("main.zig").term;
 
     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
 
-    var raw = try termios.enableRawMode(tty.context.handle);
+    var raw = try term.enableRawMode(tty.context.handle);
     defer raw.disableRawMode() catch {};
 
     var i: usize = 0;

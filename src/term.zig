@@ -11,21 +11,6 @@ pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
     var termios = original_termios;
 
     // https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
-    // All of this are bitflags, so we do NOT and then AND to disable
-
-    // ICRNL (iflag) : fix CTRL-M (carriage returns)
-    // IXON (iflag)  : disable Ctrl-S and Ctrl-Q
-
-    // OPOST (oflag) : turn off all output processing
-
-    // ECHO (lflag)  : disable prints every key to terminal
-    // ICANON (lflag): disable to reads byte per byte instead of line (or when user press enter)
-    // IEXTEN (lflag): disable Ctrl-V
-    // ISIG (lflag)  : disable Ctrl-C and Ctrl-Z
-
-    // Miscellaneous flags (most modern terminal already have them disabled)
-    // BRKINT, INPCK, ISTRIP and CS8
-    
     // TCSETATTR(3)
     // #define _GNU_SOURCE
     // #include <termios.h>
@@ -49,13 +34,12 @@ pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
 
     termios.oflag.OPOST = false;
 
-    termios.cflag.CSIZE = .CS8;
-
     termios.lflag.ECHO = false;
     termios.lflag.ICANON = false;
     termios.lflag.IEXTEN = false;
     termios.lflag.ISIG = false;
 
+    termios.cflag.CSIZE = .CS8;
 
     termios.cc[@intFromEnum(posix.V.MIN)] = 1;
     termios.cc[@intFromEnum(posix.V.TIME)] = 0;

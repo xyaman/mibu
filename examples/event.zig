@@ -3,7 +3,7 @@ const io = std.io;
 
 const mibu = @import("mibu");
 const events = mibu.events;
-const termios = mibu.termios;
+const term = mibu.term;
 const utils = mibu.utils;
 
 pub fn main() !void {
@@ -16,7 +16,7 @@ pub fn main() !void {
     }
 
     // Enable terminal raw mode, its very recommended when listening for events
-    var raw_term = try termios.enableRawMode(stdin.handle);
+    var raw_term = try term.enableRawMode(stdin.handle);
     defer raw_term.disableRawMode() catch {};
 
     // To listen mouse events, we need to enable mouse tracking
