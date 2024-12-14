@@ -11,22 +11,10 @@ pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
     const original_termios = try posix.tcgetattr(handle);
 
     var termios = original_termios;
-
+    
     // https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
     // TCSETATTR(3)
-    // #define _GNU_SOURCE
-    // #include <termios.h>
-    //
-    // void cfmakeraw(struct termios *t)
-    // {
-    // 	t->c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
-    // 	t->c_oflag &= ~OPOST;
-    // 	t->c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
-    // 	t->c_cflag &= ~(CSIZE|PARENB);
-    // 	t->c_cflag |= CS8;
-    // 	t->c_cc[VMIN] = 1;
-    // 	t->c_cc[VTIME] = 0;
-    // }
+    // reference: void cfmakeraw(struct termios *t)
 
     termios.iflag.BRKINT = false;
     termios.iflag.ICRNL = false;
@@ -92,8 +80,8 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
     }
 
     return TermSize{
-        .width = ws.ws_col,
-        .height = ws.ws_row,
+        .width = ws.row,
+        .height = ws.col,
     };
 }
 /// Switches to an alternate screen mode in the console. 
