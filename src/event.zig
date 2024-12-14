@@ -5,21 +5,17 @@ const cursor = @import("cursor.zig");
 
 pub const Event = union(enum) {
     key: Key,
-
-    // mouse: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
     mouse: Mouse,
-
-    // TODO: Signal = SIGWINCH
-    // Probably, we will need a separate thread to handle signals
     resize,
     not_supported,
-
-    none,
+    none, // polling timeout
 };
 
 const Key = union(enum) {
     // unicode character
     char: u21,
+    
+    // TODO: do we really need u21?
     ctrl: u21,
     alt: u21,
     ctrl_alt: u21,
@@ -131,6 +127,7 @@ const Key = union(enum) {
     }
 };
 
+// https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
 pub const Mouse = struct {
     x: u16,
     y: u16,
@@ -148,7 +145,6 @@ pub const Mouse = struct {
         _ = options;
         _ = fmt;
         try writer.writeAll("Mouse.");
-
         try writer.print("x: {d}, y: {d}, button: {any}, is_alt: {any}, is_shift: {any}, is_ctrl: {any}", .{ value.x, value.y, value.button, value.is_alt, value.is_shift, value.is_ctrl });
     }
 };
@@ -205,7 +201,7 @@ pub fn next(in: anytype) !Event {
     // TODO: check why utf8 view fails to parse mouse events
     // It's related with the value, if its greater than 127, it fails
     const view = std.unicode.Utf8View.init(buf[0..len]) catch {
-        return parse_csi(buf[2..len]);
+        return parseCsi(buf[2..len]);
     };
 
     var iter = view.iterator();
@@ -225,7 +221,7 @@ pub fn next(in: anytype) !Event {
 
                 // csi
                 '[' => {
-                    return try parse_csi(buf[2..len]);
+                    return try parseCsi(buf[2..len]);
                 },
 
                 '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
@@ -255,7 +251,7 @@ pub fn next(in: anytype) !Event {
     return event;
 }
 
-fn parse_csi(buf: []const u8) !Event {
+fn parseCsi(buf: []const u8) !Event {
     switch (buf[0]) {
         // keys
         'A' => return Event{ .key = .up },
@@ -343,7 +339,7 @@ fn parse_csi(buf: []const u8) !Event {
             const x = buf[2];
             const y = buf[3];
 
-            var mouse_event = parse_mouse_action(buf[1]) catch {
+            var mouse_event = parseMouseAction(buf[1]) catch {
                 return .not_supported;
             };
             // x and y are 1-based
@@ -359,7 +355,7 @@ fn parse_csi(buf: []const u8) !Event {
     return .not_supported;
 }
 
-fn parse_mouse_action(action: u8) !Mouse {
+fn parseMouseAction(action: u8) !Mouse {
     // Normal tracking mode sends an escape sequence on both button press and
     // release.  Modifier key (shift, ctrl, meta) information is also sent.  It
     // is enabled by specifying parameter 1000 to DECSET.  On button press or

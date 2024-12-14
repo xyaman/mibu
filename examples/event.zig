@@ -29,16 +29,15 @@ pub fn main() !void {
         const next = try events.nextWithTimeout(stdin, 1000);
         switch (next) {
             .key => |k| switch (k) {
-                // char can have more than 1 u8, because of unicode
                 .char => |c| switch (c) {
                     'q' => break,
-                    else => try stdout.writer().print("Key char: {u}\n\r", .{c}),
+                    else => try stdout.writer().print("{u}\n\r", .{c}),
                 },
                 .ctrl => |c| switch (c) {
                     'c' => break,
-                    else => try stdout.writer().print("Key: {s}\n\r", .{k}),
+                    else => try stdout.writer().print("ctrl+{u}\n\r", .{c}),
                 },
-                else => try stdout.writer().print("Key: {s}\n\r", .{k}),
+                else => try stdout.writer().print("{s}\n\r", .{k}),
             },
             .mouse => |m| try stdout.writer().print("Mouse: {s}\n\r", .{m}),
             .none => try stdout.writer().print("Timeout.\n\r", .{}),
