@@ -5,7 +5,7 @@
 
 **mibu** is pure Zig library for low-level terminal manipulation.
 
-> Tested with zig version `0.13.0`
+> Tested with zig version `2024.10.0-mach` (0.14.0-dev.1911+3bf89f55c)
 
 ## Features
 - Allocation free.
@@ -21,14 +21,10 @@
 
 ## How to use
 
-First we add the library as a dependency in our `build.zig.zon` file.
-```zig
-.dependencies = .{
-    .string = .{
-        .url = "https://github.com/xyaman/mibu/archive/refs/heads/main.zip",
-        //the correct hash will be suggested by the zig compiler, you can copy it from there
-    }
-}
+First we add the library as a dependency in our `build.zig.zon` file with the 
+following command.
+```bash
+zig fetch --save git+https://github.com/xyaman/mibu
 ```
 
 And we add it to `build.zig` file.
