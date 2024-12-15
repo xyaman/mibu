@@ -80,8 +80,8 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
     }
 
     return TermSize{
-        .width = ws.row,
-        .height = ws.col,
+        .width = ws.col,
+        .height = ws.row,
     };
 }
 /// Switches to an alternate screen mode in the console. 
