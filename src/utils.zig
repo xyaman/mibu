@@ -83,3 +83,25 @@ pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
     const str = "\x1b[" ++ fmt;
     return std.fmt.comptimePrint(str, args);
 }
+
+// Windows
+const windows = std.os.windows;
+const kernel32 = windows.kernel32;
+
+extern "kernel32" fn SetConsoleMode(
+    hConsoleOutput: windows.HANDLE,
+    dwMode: windows.DWORD,
+) callconv(windows.WINAPI) windows.BOOL;
+
+const ENABLE_PROCESSED_OUTPUT: windows.DWORD = 0x0001;
+const ENABLE_VIRTUAL_TERMINAL_PROCESSING: windows.DWORD = 0x0004;
+
+/// Ensure that the current console has enabled support for Virtual Terminal Sequencies (VTS).
+pub inline fn ensureWindowsVTS(writer: anytype) !void {
+    const mode: windows.DWORD = ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (SetConsoleMode(writer.context.handle, mode) == 0) {
+        switch (kernel32.GetLastError()) {
+            else => |err| return windows.unexpectedError(err),
+        }
+    }
+}

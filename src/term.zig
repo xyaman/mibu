@@ -7,11 +7,13 @@ const utils = @import("utils.zig");
 
 const builtin = @import("builtin");
 
+pub const ensureWindowsVTS = utils.ensureWindowsVTS;
+
 pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
     const original_termios = try posix.tcgetattr(handle);
 
     var termios = original_termios;
-    
+
     // https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
     // TCSETATTR(3)
     // reference: void cfmakeraw(struct termios *t)
@@ -84,7 +86,7 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
         .height = ws.row,
     };
 }
-/// Switches to an alternate screen mode in the console. 
+/// Switches to an alternate screen mode in the console.
 /// `out`: needs to be writer
 pub fn enterAlternateScreen(out: anytype) !void {
     try out.print("{s}", .{utils.comptimeCsi("?1049h", .{})});
