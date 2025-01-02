@@ -1,4 +1,7 @@
 const std = @import("std");
+const windows = std.os.windows;
+
+const winapiGlue = @import("winapiGlue.zig");
 
 pub const csi = "\x1b[";
 
@@ -84,51 +87,10 @@ pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
     return std.fmt.comptimePrint(str, args);
 }
 
-// Windows
-const windows = std.os.windows;
-const kernel32 = windows.kernel32;
-
-extern "kernel32" fn SetConsoleMode(
-    hConsoleOutput: windows.HANDLE,
-    dwMode: windows.DWORD,
-) callconv(windows.WINAPI) windows.BOOL;
-
-extern "kernel32" fn GetConsoleMode(
-    hConsoleOutput: windows.HANDLE,
-    dwMode: *windows.DWORD,
-) callconv(windows.WINAPI) windows.BOOL;
-
-extern "kernel32" fn GetConsoleScreenBufferInfo(
-    hConsoleOutput: windows.HANDLE,
-    lpConsoleScreenBufferInfo: *windows.CONSOLE_SCREEN_BUFFER_INFO,
-) callconv(windows.WINAPI) windows.BOOL;
-
-const ENABLE_PROCESSED_OUTPUT: windows.DWORD = 0x0001;
-const ENABLE_VIRTUAL_TERMINAL_PROCESSING: windows.DWORD = 0x0004;
-
 /// Ensure that the current console has enabled support for Virtual Terminal Sequencies (VTS).
 pub inline fn ensureWindowsVTS(writer: anytype) !void {
-    var old_mode: windows.DWORD = 0;
-    if (GetConsoleMode(writer.context.handle, &old_mode) == 0) {
-        switch (kernel32.GetLastError()) {
-            else => |err| return windows.unexpectedError(err),
-        }
-    }
+    const old_mode = try winapiGlue.GetConsoleModeWinApi(writer.context.handle);
 
-    const mode: windows.DWORD = old_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (SetConsoleMode(writer.context.handle, mode) == 0) {
-        switch (kernel32.GetLastError()) {
-            else => |err| return windows.unexpectedError(err),
-        }
-    }
-}
-
-pub inline fn GetConsoleScreenBufferInfoWinApi(handle: windows.HANDLE) !windows.CONSOLE_SCREEN_BUFFER_INFO {
-    var csbi: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
-    if (GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
-        switch (kernel32.GetLastError()) {
-            else => |err| return windows.unexpectedError(err),
-        }
-    }
-    return csbi;
+    const mode: windows.DWORD = old_mode | winapiGlue.ENABLE_PROCESSED_OUTPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    try winapiGlue.SetConsoleModeWinApi(writer.context.handle, mode);
 }

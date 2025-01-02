@@ -5,6 +5,7 @@ const posix = std.posix;
 const windows = std.os.windows;
 
 const utils = @import("utils.zig");
+const winapiGlue = @import("winapiGlue.zig");
 
 const builtin = @import("builtin");
 
@@ -94,7 +95,7 @@ fn getSizePosix(fd: posix.fd_t) !TermSize {
 }
 
 fn getSizeWindows(handle: windows.HANDLE) !TermSize {
-    const csbi = try utils.GetConsoleScreenBufferInfoWinApi(handle);
+    const csbi = try winapiGlue.GetConsoleScreenBufferInfoWinApi(handle);
 
     return TermSize{
         .width = @intCast(csbi.srWindow.Right - csbi.srWindow.Left + 1),
