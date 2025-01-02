@@ -9,6 +9,10 @@ const cursor = mibu.cursor;
 pub fn main() !void {
     const stdout = io.getStdOut().writer();
 
+    if (comptime @import("builtin").os.tag == .windows) {
+        try mibu.term.ensureWindowsVTS(stdout);
+    }
+
     try term.enterAlternateScreen(stdout);
     defer term.exitAlternateScreen(stdout) catch unreachable;
 
