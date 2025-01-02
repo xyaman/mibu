@@ -98,6 +98,11 @@ extern "kernel32" fn GetConsoleMode(
     dwMode: *windows.DWORD,
 ) callconv(windows.WINAPI) windows.BOOL;
 
+extern "kernel32" fn GetConsoleScreenBufferInfo(
+    hConsoleOutput: windows.HANDLE,
+    lpConsoleScreenBufferInfo: *windows.CONSOLE_SCREEN_BUFFER_INFO,
+) callconv(windows.WINAPI) windows.BOOL;
+
 const ENABLE_PROCESSED_OUTPUT: windows.DWORD = 0x0001;
 const ENABLE_VIRTUAL_TERMINAL_PROCESSING: windows.DWORD = 0x0004;
 
@@ -116,4 +121,14 @@ pub inline fn ensureWindowsVTS(writer: anytype) !void {
             else => |err| return windows.unexpectedError(err),
         }
     }
+}
+
+pub inline fn GetConsoleScreenBufferInfoWinApi(handle: windows.HANDLE) !windows.CONSOLE_SCREEN_BUFFER_INFO {
+    var csbi: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
+    if (GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
+        switch (kernel32.GetLastError()) {
+            else => |err| return windows.unexpectedError(err),
+        }
+    }
+    return csbi;
 }

@@ -2,6 +2,7 @@ const std = @import("std");
 const os = std.os;
 const io = std.io;
 const posix = std.posix;
+const windows = std.os.windows;
 
 const utils = @import("utils.zig");
 
@@ -68,11 +69,16 @@ pub const TermSize = struct {
 };
 
 /// Get the terminal size, use `fd` equals to 0 use stdin
-pub fn getSize(fd: posix.fd_t) !TermSize {
-    if (builtin.os.tag != .linux and builtin.os.tag != .macos) {
-        return error.UnsupportedPlatform;
+pub fn getSize(handle: std.fs.File.Handle) !TermSize {
+    switch (builtin.os.tag) {
+        .linux => return getSizePosix(handle),
+        .macos => return getSizePosix(handle),
+        .windows => return getSizeWindows(handle),
+        else => return error.UnsupportedPlatform,
     }
+}
 
+fn getSizePosix(fd: posix.fd_t) !TermSize {
     var ws: posix.winsize = undefined;
 
     // tty_ioctl(4)
@@ -84,6 +90,15 @@ pub fn getSize(fd: posix.fd_t) !TermSize {
     return TermSize{
         .width = ws.col,
         .height = ws.row,
+    };
+}
+
+fn getSizeWindows(handle: windows.HANDLE) !TermSize {
+    const csbi = try utils.GetConsoleScreenBufferInfoWinApi(handle);
+
+    return TermSize{
+        .width = @intCast(csbi.srWindow.Right - csbi.srWindow.Left + 1),
+        .height = @intCast(csbi.srWindow.Bottom - csbi.srWindow.Top + 1),
     };
 }
 /// Switches to an alternate screen mode in the console.
