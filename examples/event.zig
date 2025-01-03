@@ -10,6 +10,10 @@ pub fn main() !void {
     const stdin = io.getStdIn();
     const stdout = io.getStdOut();
 
+    if (@import("builtin").os.tag == .windows) {
+        try term.ensureWindowsVTS(stdout.handle);
+    }
+
     if (!std.posix.isatty(stdin.handle)) {
         try stdout.writer().print("The current file descriptor is not a referring to a terminal.\n", .{});
         return;

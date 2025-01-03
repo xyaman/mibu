@@ -11,7 +11,16 @@ const builtin = @import("builtin");
 
 pub const ensureWindowsVTS = utils.ensureWindowsVTS;
 
-pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
+pub fn enableRawMode(handle: std.fs.File.Handle) !RawTerm {
+    switch (builtin.os.tag) {
+        .linux => return enableRawModePosix(handle),
+        .macos => return enableRawModePosix(handle),
+        .windows => return enableRawModeWindows(handle),
+        else => return error.UnsupportedPlatform,
+    }
+}
+
+fn enableRawModePosix(handle: posix.fd_t) !RawTerm {
     const original_termios = try posix.tcgetattr(handle);
 
     var termios = original_termios;
@@ -42,7 +51,19 @@ pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
     try posix.tcsetattr(handle, .FLUSH, termios);
 
     return RawTerm{
-        .orig_termios = original_termios,
+        .context = original_termios,
+        .handle = handle,
+    };
+}
+
+fn enableRawModeWindows(handle: windows.HANDLE) !RawTerm {
+    const old_mode = try winapiGlue.GetConsoleMode(handle);
+
+    const mode: windows.DWORD = winapiGlue.ENABLE_MOUSE_INPUT | winapiGlue.ENABLE_WINDOW_INPUT;
+    try winapiGlue.SetConsoleMode(handle, mode);
+
+    return RawTerm{
+        .context = old_mode,
         .handle = handle,
     };
 }
@@ -50,16 +71,32 @@ pub fn enableRawMode(handle: posix.fd_t) !RawTerm {
 /// A raw terminal representation, you can enter terminal raw mode
 /// using this struct. Raw mode is essential to create a TUI.
 pub const RawTerm = struct {
-    orig_termios: std.posix.termios,
+    context: switch (builtin.os.tag) {
+        .windows => windows.DWORD,
+        else => posix.termios,
+    },
 
     /// The OS-specific file descriptor or file handle.
-    handle: os.linux.fd_t,
+    handle: std.fs.File.Handle,
 
     const Self = @This();
 
     /// Returns to the previous terminal state
     pub fn disableRawMode(self: *Self) !void {
-        try posix.tcsetattr(self.handle, .FLUSH, self.orig_termios);
+        switch (builtin.os.tag) {
+            .linux => try self.disableRawModePosix(),
+            .macos => try self.disableRawModePosix(),
+            .windows => try self.disableRawModeWindows(),
+            else => return error.UnsupportedPlatform,
+        }
+    }
+
+    fn disableRawModePosix(self: *Self) !void {
+        try posix.tcsetattr(self.handle, .FLUSH, self.context);
+    }
+
+    fn disableRawModeWindows(self: *Self) !void {
+        try winapiGlue.SetConsoleMode(self.handle, self.context);
     }
 };
 
@@ -95,7 +132,7 @@ fn getSizePosix(fd: posix.fd_t) !TermSize {
 }
 
 fn getSizeWindows(handle: windows.HANDLE) !TermSize {
-    const csbi = try winapiGlue.GetConsoleScreenBufferInfoWinApi(handle);
+    const csbi = try winapiGlue.GetConsoleScreenBufferInfo(handle);
 
     return TermSize{
         .width = @intCast(csbi.srWindow.Right - csbi.srWindow.Left + 1),

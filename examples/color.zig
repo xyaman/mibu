@@ -10,7 +10,7 @@ pub fn main() !void {
     const stdout = io.getStdOut();
 
     if (comptime @import("builtin").os.tag == .windows) {
-        try mibu.term.ensureWindowsVTS(stdout.writer());
+        try mibu.term.ensureWindowsVTS(stdout.handle);
     }
 
     try stdout.writer().print("{s}Warning text\n", .{color.print.fg(.red)});

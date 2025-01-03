@@ -88,9 +88,9 @@ pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
 }
 
 /// Ensure that the current console has enabled support for Virtual Terminal Sequencies (VTS).
-pub inline fn ensureWindowsVTS(writer: anytype) !void {
-    const old_mode = try winapiGlue.GetConsoleModeWinApi(writer.context.handle);
+pub inline fn ensureWindowsVTS(handle: windows.HANDLE) !void {
+    const old_mode = try winapiGlue.GetConsoleMode(handle);
 
     const mode: windows.DWORD = old_mode | winapiGlue.ENABLE_PROCESSED_OUTPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    try winapiGlue.SetConsoleModeWinApi(writer.context.handle, mode);
+    try winapiGlue.SetConsoleMode(handle, mode);
 }
