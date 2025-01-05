@@ -94,3 +94,8 @@ pub inline fn ensureWindowsVTS(handle: windows.HANDLE) !void {
     const mode: windows.DWORD = old_mode | winapiGlue.ENABLE_PROCESSED_OUTPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     try winapiGlue.SetConsoleMode(handle, mode);
 }
+
+/// Sets up the windows Console.
+pub fn initWindows(handle: windows.HANDLE) !void {
+    try ensureWindowsVTS(handle);
+}

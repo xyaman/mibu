@@ -9,8 +9,6 @@ const winapiGlue = @import("winapiGlue.zig");
 
 const builtin = @import("builtin");
 
-pub const ensureWindowsVTS = utils.ensureWindowsVTS;
-
 pub fn enableRawMode(handle: std.fs.File.Handle) !RawTerm {
     switch (builtin.os.tag) {
         .linux => return enableRawModePosix(handle),

@@ -10,8 +10,8 @@ pub fn main() !void {
     const stdout = io.getStdOut();
     const stdout_wrt = stdout.writer();
 
-    if (comptime @import("builtin").os.tag == .windows) {
-        try mibu.term.ensureWindowsVTS(stdout.handle);
+    if (@import("builtin").os.tag == .windows) {
+        try mibu.initWindows(stdout.handle);
     }
 
     try term.enterAlternateScreen(stdout_wrt);

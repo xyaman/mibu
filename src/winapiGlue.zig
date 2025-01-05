@@ -1,4 +1,5 @@
-const windows = @import("std").os.windows;
+const std = @import("std");
+const windows = std.os.windows;
 const kernel32 = windows.kernel32;
 
 pub const ENABLE_PROCESSED_OUTPUT: windows.DWORD = 0x0001;
