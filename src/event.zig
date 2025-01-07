@@ -3,7 +3,6 @@ const io = std.io;
 const windows = std.os.windows;
 
 const cursor = @import("cursor.zig");
-const winapiGlue = @import("winapiGlue.zig");
 
 pub const Event = union(enum) {
     key: Key,
