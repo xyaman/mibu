@@ -8,6 +8,11 @@ pub const utils = @import("utils.zig");
 pub const term = @import("term.zig");
 pub const events = @import("event.zig");
 
+pub const initWindows = switch (@import("builtin").os.tag) {
+    .windows => @import("utils.zig").initWindows,
+    else => undefined,
+};
+
 test {
     std.testing.refAllDecls(@This());
 }

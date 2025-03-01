@@ -9,6 +9,10 @@ const cursor = mibu.cursor;
 pub fn main() !void {
     const stdout = io.getStdOut();
 
+    if (@import("builtin").os.tag == .windows) {
+        try mibu.initWindows(stdout.handle);
+    }
+
     try stdout.writer().print("{s}Warning text\n", .{color.print.fg(.red)});
 
     try color.fg256(stdout.writer(), .blue);

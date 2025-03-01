@@ -15,6 +15,10 @@ pub fn main() !void {
         return;
     }
 
+    if (@import("builtin").os.tag == .windows) {
+        try mibu.initWindows(stdout.handle);
+    }
+
     // Enable terminal raw mode, its very recommended when listening for events
     var raw_term = try term.enableRawMode(stdin.handle);
     defer raw_term.disableRawMode() catch {};
