@@ -5,7 +5,7 @@
 
 **mibu** is pure Zig library for low-level terminal manipulation.
 
-> Tested with zig version `2024.10.0-mach` (0.14.0-dev.1911+3bf89f55c)
+> Tested with zig version `2024.11.0-mach` (0.14.0-dev.2577+271452d22)
 
 ## Features
 - Allocation free.
