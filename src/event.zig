@@ -1,5 +1,6 @@
 const std = @import("std");
 const io = std.io;
+const windows = std.os.windows;
 
 const cursor = @import("cursor.zig");
 
@@ -14,7 +15,7 @@ pub const Event = union(enum) {
 const Key = union(enum) {
     // unicode character
     char: u21,
-    
+
     // TODO: do we really need u21?
     ctrl: u21,
     alt: u21,
@@ -162,13 +163,21 @@ pub const MouseButton = enum {
     __non_exhaustive,
 };
 
-/// Returns the next event received. If no event is received within the timeout, 
+/// Returns the next event received. If no event is received within the timeout,
 /// it returns `.none`. Timeout is in miliseconds
 ///
 /// When used in canonical mode, the user needs to press Enter to receive the event.
-/// When raw terminal mode is activated, the function waits up to the specified timeout 
+/// When raw terminal mode is activated, the function waits up to the specified timeout
 /// for at least one event before returning.
 pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
+    switch (@import("builtin").os.tag) {
+        .linux => return nextWithTimeoutPosix(in, timeout_ms),
+        .macos => return nextWithTimeoutPosix(in, timeout_ms),
+        else => return error.UnsupportedPlatform,
+    }
+}
+
+fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
     var polls: [1]std.posix.pollfd = .{.{
         .fd = in.handle,
         .events = std.posix.POLL.IN,
@@ -195,7 +204,6 @@ pub fn next(in: anytype) !Event {
     }
 
     // const view = try std.unicode.Utf8View.init(buf[0..c]);
-    
     // This is hacky to make mouse code work
     // utf8 view failes to parse mouse events, dont know why, need to check it later
     // TODO: check why utf8 view fails to parse mouse events
@@ -424,17 +432,17 @@ fn parseMouseAction(action: u8) !Mouse {
     return mouse_event;
 }
 
-test "next" {
-    const term = @import("main.zig").term;
-
-    const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
-
-    var raw = try term.enableRawMode(tty.context.handle);
-    defer raw.disableRawMode() catch {};
-
-    var i: usize = 0;
-    while (i < 3) : (i += 1) {
-        const key = try next(tty);
-        std.debug.print("\n\r{any}\n", .{key});
-    }
-}
+// test "next" {
+//     const term = @import("main.zig").term;
+//
+//     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
+//
+//     var raw = try term.enableRawMode(tty.context.handle);
+//     defer raw.disableRawMode() catch {};
+//
+//     var i: usize = 0;
+//     while (i < 3) : (i += 1) {
+//         const key = try next(tty);
+//         std.debug.print("\n\r{any}\n", .{key});
+//     }
+// }

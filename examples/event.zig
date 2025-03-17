@@ -15,6 +15,10 @@ pub fn main() !void {
         return;
     }
 
+    if (@import("builtin").os.tag == .windows) {
+        try mibu.enableWindowsVTS(stdout.handle);
+    }
+
     // Enable terminal raw mode, its very recommended when listening for events
     var raw_term = try term.enableRawMode(stdin.handle);
     defer raw_term.disableRawMode() catch {};
@@ -26,7 +30,8 @@ pub fn main() !void {
     try stdout.writer().print("Press q or Ctrl-C to exit...\n\r", .{});
 
     while (true) {
-        const next = try events.nextWithTimeout(stdin, 1000);
+        // const next = try events.nextWithTimeout(stdin, 1000);
+        const next = try events.next(stdin);
         switch (next) {
             .key => |k| switch (k) {
                 .char => |c| switch (c) {

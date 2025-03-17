@@ -1,4 +1,7 @@
 const std = @import("std");
+const windows = std.os.windows;
+
+const winapiGlue = @import("winapiGlue.zig");
 
 pub const csi = "\x1b[";
 
@@ -82,4 +85,14 @@ pub const disable_mouse_tracking = "\x1b[?1003l";
 pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
     const str = "\x1b[" ++ fmt;
     return std.fmt.comptimePrint(str, args);
+}
+
+/// Ensure that the current console has enabled support for Virtual Terminal Sequencies (VTS).
+/// https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#example-of-enabling-virtual-terminal-processing
+/// TODO: should we add a disable method?
+pub fn enableWindowsVTS(handle: windows.HANDLE) !void {
+    const old_mode = try winapiGlue.getConsoleMode(handle);
+
+    const mode: windows.DWORD = old_mode | winapiGlue.ENABLE_PROCESSED_OUTPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    try winapiGlue.setConsoleMode(handle, mode);
 }
