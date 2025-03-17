@@ -11,7 +11,7 @@ pub fn main() !void {
     const stdout_wrt = stdout.writer();
 
     if (@import("builtin").os.tag == .windows) {
-        try mibu.initWindows(stdout.handle);
+        try mibu.enableWindowsVTS(stdout.handle);
     }
 
     try term.enterAlternateScreen(stdout_wrt);

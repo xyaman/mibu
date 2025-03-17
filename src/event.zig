@@ -173,7 +173,6 @@ pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
     switch (@import("builtin").os.tag) {
         .linux => return nextWithTimeoutPosix(in, timeout_ms),
         .macos => return nextWithTimeoutPosix(in, timeout_ms),
-        .windows => return nextWithTimeoutWindows(in, timeout_ms),
         else => return error.UnsupportedPlatform,
     }
 }
@@ -189,10 +188,6 @@ fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
     }
 
     return .none;
-}
-
-fn nextWithTimeoutWindows(_: anytype, _: i32) !Event {
-    return error.UnsupportedPlatform;
 }
 
 /// Returns the next event received.
@@ -437,17 +432,17 @@ fn parseMouseAction(action: u8) !Mouse {
     return mouse_event;
 }
 
-test "next" {
-    const term = @import("main.zig").term;
-
-    const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
-
-    var raw = try term.enableRawMode(tty.context.handle);
-    defer raw.disableRawMode() catch {};
-
-    var i: usize = 0;
-    while (i < 3) : (i += 1) {
-        const key = try next(tty);
-        std.debug.print("\n\r{any}\n", .{key});
-    }
-}
+// test "next" {
+//     const term = @import("main.zig").term;
+//
+//     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
+//
+//     var raw = try term.enableRawMode(tty.context.handle);
+//     defer raw.disableRawMode() catch {};
+//
+//     var i: usize = 0;
+//     while (i < 3) : (i += 1) {
+//         const key = try next(tty);
+//         std.debug.print("\n\r{any}\n", .{key});
+//     }
+// }

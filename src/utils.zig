@@ -88,14 +88,11 @@ pub inline fn comptimeCsi(comptime fmt: []const u8, args: anytype) []const u8 {
 }
 
 /// Ensure that the current console has enabled support for Virtual Terminal Sequencies (VTS).
-pub fn ensureWindowsVTS(handle: windows.HANDLE) !void {
-    const old_mode = try winapiGlue.GetConsoleMode(handle);
+/// https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#example-of-enabling-virtual-terminal-processing
+/// TODO: should we add a disable method?
+pub fn enableWindowsVTS(handle: windows.HANDLE) !void {
+    const old_mode = try winapiGlue.getConsoleMode(handle);
 
     const mode: windows.DWORD = old_mode | winapiGlue.ENABLE_PROCESSED_OUTPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    try winapiGlue.SetConsoleMode(handle, mode);
-}
-
-/// Sets up the windows Console.
-pub fn initWindows(handle: windows.HANDLE) !void {
-    try ensureWindowsVTS(handle);
+    try winapiGlue.setConsoleMode(handle, mode);
 }

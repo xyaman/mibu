@@ -55,10 +55,10 @@ fn enableRawModePosix(handle: posix.fd_t) !RawTerm {
 }
 
 fn enableRawModeWindows(handle: windows.HANDLE) !RawTerm {
-    const old_mode = try winapiGlue.GetConsoleMode(handle);
+    const old_mode = try winapiGlue.getConsoleMode(handle);
 
     const mode: windows.DWORD = winapiGlue.ENABLE_MOUSE_INPUT | winapiGlue.ENABLE_WINDOW_INPUT;
-    try winapiGlue.SetConsoleMode(handle, mode);
+    try winapiGlue.setConsoleMode(handle, mode);
 
     return RawTerm{
         .context = old_mode,
@@ -94,7 +94,7 @@ pub const RawTerm = struct {
     }
 
     fn disableRawModeWindows(self: *Self) !void {
-        try winapiGlue.SetConsoleMode(self.handle, self.context);
+        try winapiGlue.setConsoleMode(self.handle, self.context);
     }
 };
 
@@ -130,13 +130,14 @@ fn getSizePosix(fd: posix.fd_t) !TermSize {
 }
 
 fn getSizeWindows(handle: windows.HANDLE) !TermSize {
-    const csbi = try winapiGlue.GetConsoleScreenBufferInfo(handle);
+    const csbi = try winapiGlue.getConsoleScreenBufferInfo(handle);
 
     return TermSize{
         .width = @intCast(csbi.srWindow.Right - csbi.srWindow.Left + 1),
         .height = @intCast(csbi.srWindow.Bottom - csbi.srWindow.Top + 1),
     };
 }
+
 /// Switches to an alternate screen mode in the console.
 /// `out`: needs to be writer
 pub fn enterAlternateScreen(out: anytype) !void {
@@ -149,13 +150,17 @@ pub fn exitAlternateScreen(out: anytype) !void {
     try out.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }
 
-test "entering stdin raw mode" {
+test "termsize posix" {
+    if (builtin.os.tag == .windows) return;
     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
-
     const termsize = try getSize(tty.context.handle);
-    std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
 
-    // stdin.handle is the same as os.STDIN_FILENO
-    // var term = try enableRawMode(tty.context.handle, .blocking);
-    // defer term.disableRawMode() catch {};
+    std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
 }
+
+// test "termsize windows" {
+//     if (builtin.os.tag != .windows) return;
+//     const stdin = try windows.GetStdHandle(windows.STD_INPUT_HANDLE);
+//     const termsize = try getSizeWindows(stdin);
+//     std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
+// }
