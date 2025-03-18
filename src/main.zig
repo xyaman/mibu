@@ -10,9 +10,15 @@ pub const events = @import("event.zig");
 
 pub const enableWindowsVTS = switch (@import("builtin").os.tag) {
     .windows => @import("utils.zig").enableWindowsVTS,
-    else => @compileError("enableWindowsVTS is supported only on Windows")
+    else => @compileError("enableWindowsVTS is supported only on Windows"),
 };
 
 test {
-    std.testing.refAllDecls(@This());
+    _ = clear;
+    _ = color;
+    _ = cursor;
+    _ = style;
+    _ = utils;
+    _ = term;
+    _ = events;
 }
