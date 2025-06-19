@@ -31,7 +31,7 @@ pub fn main() !void {
 
     while (true) {
         // const next = try events.nextWithTimeout(stdin, 1000);
-        const next = try events.next(stdin);
+        const next = try events.next(stdin.reader());
         switch (next) {
             .key => |k| switch (k) {
                 .char => |c| switch (c) {
