@@ -1,5 +1,6 @@
 const std = @import("std");
 const io = std.io;
+const unicode = std.unicode;
 const windows = std.os.windows;
 
 const cursor = @import("cursor.zig");
@@ -190,77 +191,81 @@ fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
     return .none;
 }
 
+fn readByteOrNull(reader: anytype) ?u8 {
+    const v = reader.readByte() catch {
+        return null;
+    };
+    return v;
+}
+
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is activated it will block until read at least one event.
 ///
 /// `in`: needs to be reader
 pub fn next(in: anytype) !Event {
-    // TODO: Check buffer size
-    var buf: [20]u8 = undefined;
-    const len = try in.read(&buf);
-    if (len == 0) {
-        return .none;
+    const reader = in;
+    while (readByteOrNull(reader)) |c0| {
+        switch (c0) {
+            '\x1b' => {
+                if (readByteOrNull(reader)) |c1| switch (c1) {
+                    // fn (1 - 4)
+                    // O - 0x6f - 111
+                    '\x4f' => {
+                        const c2 = readByteOrNull(reader);
+                        if (c2 != null) {
+                            return Event{ .key = Key{ .fun = (1 + c2.? - '\x50') } };
+                        }
+                    },
+
+                    //csi
+                    '[' => {
+                        return parseCsi(reader);
+                    },
+                    '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
+                    else => return Event{ .key = Key{ .alt = c1 } },
+                } else {
+                    return Event{ .key = .esc };
+                }
+            },
+
+            // tab is equal to ctrl-i
+
+            // ctrl keys (avoids ctrl-m)
+            '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
+
+            // special chars
+            '\x7f' => return Event{ .key = .backspace },
+            '\x0D' => return Event{ .key = .enter },
+
+            // unicode characters
+            else => {
+                const len = try unicode.utf8ByteSequenceLength(c0);
+                var buf: [4]u8 = undefined;
+                buf[0] = c0;
+                for (1..len) |i| {
+                    buf[i] = readByteOrNull(reader).?;
+                }
+                const ch = switch (len) {
+                    1 => buf[0],
+                    2 => try unicode.utf8Decode2(buf[0..2].*),
+                    3 => try unicode.utf8Decode3(buf[0..3].*),
+                    4 => try unicode.utf8Decode4(buf[0..4].*),
+                    else => unreachable,
+                };
+                return Event{ .key = Key{ .char = ch } };
+            },
+        }
     }
-
-    // const view = try std.unicode.Utf8View.init(buf[0..c]);
-    // This is hacky to make mouse code work
-    // utf8 view failes to parse mouse events, dont know why, need to check it later
-    // TODO: check why utf8 view fails to parse mouse events
-    // It's related with the value, if its greater than 127, it fails
-    const view = std.unicode.Utf8View.init(buf[0..len]) catch {
-        return parseCsi(buf[2..len]);
-    };
-
-    var iter = view.iterator();
-    const event: Event = .none;
-
-    // std.debug.print("\n\r{any}\n", .{view});
-
-    // TODO: Find a better way to iterate buffer
-    if (iter.nextCodepoint()) |c0| switch (c0) {
-        '\x1b' => {
-            if (iter.nextCodepoint()) |c1| switch (c1) {
-                // fn (1 - 4)
-                // O - 0x6f - 111
-                '\x4f' => {
-                    return Event{ .key = Key{ .fun = (1 + buf[2] - '\x50') } };
-                },
-
-                // csi
-                '[' => {
-                    return try parseCsi(buf[2..len]);
-                },
-
-                '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
-
-                // alt key
-                else => {
-                    return Event{ .key = Key{ .alt = c1 } };
-                },
-            } else {
-                return Event{ .key = .esc };
-            }
-        },
-
-        // tab is equal to ctrl-i
-
-        // ctrl keys (avoids ctrl-m)
-        '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
-
-        // special chars
-        '\x7f' => return Event{ .key = .backspace },
-        '\x0D' => return Event{ .key = .enter },
-
-        // chars and shift + chars
-        else => return Event{ .key = Key{ .char = c0 } },
-    };
-
-    return event;
+    return .none;
 }
-
-fn parseCsi(buf: []const u8) !Event {
-    switch (buf[0]) {
+fn parseCsi(in: anytype) !Event {
+    const reader = in;
+    const c0 = readByteOrNull(reader);
+    if (c0 == null) {
+        return .not_supported;
+    }
+    switch (c0.?) {
         // keys
         'A' => return Event{ .key = .up },
         'B' => return Event{ .key = .down },
@@ -268,7 +273,11 @@ fn parseCsi(buf: []const u8) !Event {
         'D' => return Event{ .key = .left },
 
         '1' => {
-            switch (buf[1]) {
+            const c1 = readByteOrNull(reader);
+            if (c1 == null) {
+                return .not_supported;
+            }
+            switch (c1.?) {
                 '5' => return Event{ .key = Key{ .fun = 5 } },
                 '7' => return Event{ .key = Key{ .fun = 6 } },
                 '8' => return Event{ .key = Key{ .fun = 7 } },
@@ -276,9 +285,17 @@ fn parseCsi(buf: []const u8) !Event {
                 '~' => return Event{ .key = .home },
                 // shift + arrow keys
                 ';' => {
-                    switch (buf[2]) {
+                    const c2 = readByteOrNull(reader);
+                    if (c2 == null) {
+                        return .not_supported;
+                    }
+                    switch (c2.?) {
                         '2' => {
-                            switch (buf[3]) {
+                            const c3 = readByteOrNull(reader);
+                            if (c3 == null) {
+                                return .not_supported;
+                            }
+                            switch (c3.?) {
                                 'A' => return Event{ .key = .shift_up },
                                 'B' => return Event{ .key = .shift_down },
                                 'C' => return Event{ .key = .shift_right },
@@ -287,7 +304,11 @@ fn parseCsi(buf: []const u8) !Event {
                             }
                         },
                         '5' => {
-                            switch (buf[3]) {
+                            const c3 = readByteOrNull(reader);
+                            if (c3 == null) {
+                                return .not_supported;
+                            }
+                            switch (c3.?) {
                                 'A' => return Event{ .key = .ctrl_up },
                                 'B' => return Event{ .key = .ctrl_down },
                                 'C' => return Event{ .key = .ctrl_right },
@@ -296,7 +317,11 @@ fn parseCsi(buf: []const u8) !Event {
                             }
                         },
                         '6' => {
-                            switch (buf[3]) {
+                            const c3 = readByteOrNull(reader);
+                            if (c3 == null) {
+                                return .not_supported;
+                            }
+                            switch (c3.?) {
                                 'A' => return Event{ .key = .ctrl_shift_up },
                                 'B' => return Event{ .key = .ctrl_shift_down },
                                 'C' => return Event{ .key = .ctrl_shift_right },
@@ -306,7 +331,11 @@ fn parseCsi(buf: []const u8) !Event {
                         },
 
                         '7' => {
-                            switch (buf[3]) {
+                            const c3 = readByteOrNull(reader);
+                            if (c3 == null) {
+                                return .not_supported;
+                            }
+                            switch (c3.?) {
                                 'A' => return Event{ .key = .ctrl_alt_up },
                                 'B' => return Event{ .key = .ctrl_alt_down },
                                 'C' => return Event{ .key = .ctrl_alt_right },
@@ -323,7 +352,11 @@ fn parseCsi(buf: []const u8) !Event {
         },
 
         '2' => {
-            switch (buf[1]) {
+            const c3 = readByteOrNull(reader);
+            if (c3 == null) {
+                return .not_supported;
+            }
+            switch (c3.?) {
                 '0' => return Event{ .key = Key{ .fun = 9 } },
                 '1' => return Event{ .key = Key{ .fun = 10 } },
                 '3' => return Event{ .key = Key{ .fun = 11 } },
@@ -343,16 +376,20 @@ fn parseCsi(buf: []const u8) !Event {
         // -   Cb is button-1, where button is 1, 2 or 3.
         // -   Cx and Cy are the x and y coordinates of the mouse when the button
         //     was pressed.
-        'M' => {
-            const x = buf[2];
-            const y = buf[3];
+        'M' => blk: {
+            const mouseAction = readByteOrNull(reader);
+            const x = readByteOrNull(reader);
+            const y = readByteOrNull(reader);
+            if (x == null or y == null or mouseAction == null) {
+                break :blk;
+            } 
 
-            var mouse_event = parseMouseAction(buf[1]) catch {
+            var mouse_event = parseMouseAction(mouseAction.?) catch {
                 return .not_supported;
             };
             // x and y are 1-based
-            mouse_event.x = x - 1;
-            mouse_event.y = y - 1;
+            mouse_event.x = x.? - 1;
+            mouse_event.y = y.? - 1;
 
             return Event{ .mouse = mouse_event };
         },
