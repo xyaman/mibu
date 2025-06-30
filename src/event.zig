@@ -191,11 +191,11 @@ fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
     return .none;
 }
 
-fn readByteOrNull(reader: anytype) ?u8 {
-    const v = reader.readByte() catch {
-        return null;
+fn readByteOrNull(reader: anytype) !?u8 {
+    return reader.readByte() catch |err| switch (err) {
+        error.EndOfStream => null,
+        else => return err,
     };
-    return v;
 }
 
 /// Returns the next event received.
@@ -203,65 +203,64 @@ fn readByteOrNull(reader: anytype) ?u8 {
 /// When raw term is activated it will block until read at least one event.
 ///
 /// `in`: needs to be reader
-pub fn next(in: anytype) !Event {
-    const reader = in;
-    while (readByteOrNull(reader)) |c0| {
-        switch (c0) {
-            '\x1b' => {
-                if (readByteOrNull(reader)) |c1| switch (c1) {
-                    // fn (1 - 4)
-                    // O - 0x6f - 111
-                    '\x4f' => {
-                        const c2 = readByteOrNull(reader);
-                        if (c2 != null) {
-                            return Event{ .key = Key{ .fun = (1 + c2.? - '\x50') } };
-                        }
-                    },
+pub fn next(reader: anytype) !Event {
+    const c0 = try readByteOrNull(reader) orelse return .none;
+    switch (c0) {
+        '\x1b' => {
+            if (try readByteOrNull(reader)) |c1| switch (c1) {
+                // fn (1 - 4)
+                // O - 0x6f - 111
+                '\x4f' => {
+                    const c2 = try readByteOrNull(reader);
+                    if (c2 != null) {
+                        return Event{ .key = Key{ .fun = (1 + c2.? - '\x50') } };
+                    }
+                },
 
-                    //csi
-                    '[' => {
-                        return parseCsi(reader);
-                    },
-                    '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
-                    else => return Event{ .key = Key{ .alt = c1 } },
-                } else {
-                    return Event{ .key = .esc };
-                }
-            },
+                //csi
+                '[' => {
+                    return parseCsi(reader);
+                },
+                '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
+                else => return Event{ .key = Key{ .alt = c1 } },
+            } else {
+                return Event{ .key = .esc };
+            }
+        },
 
-            // tab is equal to ctrl-i
+        // tab is equal to ctrl-i
 
-            // ctrl keys (avoids ctrl-m)
-            '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
+        // ctrl keys (avoids ctrl-m)
+        '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
 
-            // special chars
-            '\x7f' => return Event{ .key = .backspace },
-            '\x0D' => return Event{ .key = .enter },
+        // special chars
+        '\x7f' => return Event{ .key = .backspace },
+        '\x0D' => return Event{ .key = .enter },
 
-            // unicode characters
-            else => {
-                const len = try unicode.utf8ByteSequenceLength(c0);
-                var buf: [4]u8 = undefined;
-                buf[0] = c0;
-                for (1..len) |i| {
-                    buf[i] = readByteOrNull(reader).?;
-                }
-                const ch = switch (len) {
-                    1 => buf[0],
-                    2 => try unicode.utf8Decode2(buf[0..2].*),
-                    3 => try unicode.utf8Decode3(buf[0..3].*),
-                    4 => try unicode.utf8Decode4(buf[0..4].*),
-                    else => unreachable,
-                };
-                return Event{ .key = Key{ .char = ch } };
-            },
-        }
+        // unicode characters
+        else => {
+            const len = try unicode.utf8ByteSequenceLength(c0);
+            var buf: [4]u8 = undefined;
+            buf[0] = c0;
+            for (1..len) |i| {
+                buf[i] = (try readByteOrNull(reader)).?;
+            }
+            const ch = switch (len) {
+                1 => buf[0],
+                2 => try unicode.utf8Decode2(buf[0..2].*),
+                3 => try unicode.utf8Decode3(buf[0..3].*),
+                4 => try unicode.utf8Decode4(buf[0..4].*),
+                else => unreachable,
+            };
+            return Event{ .key = Key{ .char = ch } };
+        },
     }
+
     return .none;
 }
-fn parseCsi(in: anytype) !Event {
-    const reader = in;
-    const c0 = readByteOrNull(reader);
+
+fn parseCsi(reader: anytype) !Event {
+    const c0 = try readByteOrNull(reader);
     if (c0 == null) {
         return .not_supported;
     }
@@ -273,10 +272,11 @@ fn parseCsi(in: anytype) !Event {
         'D' => return Event{ .key = .left },
 
         '1' => {
-            const c1 = readByteOrNull(reader);
+            const c1 = try readByteOrNull(reader);
             if (c1 == null) {
                 return .not_supported;
             }
+
             switch (c1.?) {
                 '5' => return Event{ .key = Key{ .fun = 5 } },
                 '7' => return Event{ .key = Key{ .fun = 6 } },
@@ -285,13 +285,13 @@ fn parseCsi(in: anytype) !Event {
                 '~' => return Event{ .key = .home },
                 // shift + arrow keys
                 ';' => {
-                    const c2 = readByteOrNull(reader);
+                    const c2 = try readByteOrNull(reader);
                     if (c2 == null) {
                         return .not_supported;
                     }
                     switch (c2.?) {
                         '2' => {
-                            const c3 = readByteOrNull(reader);
+                            const c3 = try readByteOrNull(reader);
                             if (c3 == null) {
                                 return .not_supported;
                             }
@@ -304,7 +304,7 @@ fn parseCsi(in: anytype) !Event {
                             }
                         },
                         '5' => {
-                            const c3 = readByteOrNull(reader);
+                            const c3 = try readByteOrNull(reader);
                             if (c3 == null) {
                                 return .not_supported;
                             }
@@ -317,7 +317,7 @@ fn parseCsi(in: anytype) !Event {
                             }
                         },
                         '6' => {
-                            const c3 = readByteOrNull(reader);
+                            const c3 = try readByteOrNull(reader);
                             if (c3 == null) {
                                 return .not_supported;
                             }
@@ -331,7 +331,7 @@ fn parseCsi(in: anytype) !Event {
                         },
 
                         '7' => {
-                            const c3 = readByteOrNull(reader);
+                            const c3 = try readByteOrNull(reader);
                             if (c3 == null) {
                                 return .not_supported;
                             }
@@ -352,7 +352,7 @@ fn parseCsi(in: anytype) !Event {
         },
 
         '2' => {
-            const c3 = readByteOrNull(reader);
+            const c3 = try readByteOrNull(reader);
             if (c3 == null) {
                 return .not_supported;
             }
@@ -377,12 +377,12 @@ fn parseCsi(in: anytype) !Event {
         // -   Cx and Cy are the x and y coordinates of the mouse when the button
         //     was pressed.
         'M' => blk: {
-            const mouseAction = readByteOrNull(reader);
-            const x = readByteOrNull(reader);
-            const y = readByteOrNull(reader);
+            const mouseAction = try readByteOrNull(reader);
+            const x = try readByteOrNull(reader);
+            const y = try readByteOrNull(reader);
             if (x == null or y == null or mouseAction == null) {
                 break :blk;
-            } 
+            }
 
             var mouse_event = parseMouseAction(mouseAction.?) catch {
                 return .not_supported;
@@ -469,17 +469,3 @@ fn parseMouseAction(action: u8) !Mouse {
     return mouse_event;
 }
 
-// test "next" {
-//     const term = @import("main.zig").term;
-//
-//     const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
-//
-//     var raw = try term.enableRawMode(tty.context.handle);
-//     defer raw.disableRawMode() catch {};
-//
-//     var i: usize = 0;
-//     while (i < 3) : (i += 1) {
-//         const key = try next(tty);
-//         std.debug.print("\n\r{any}\n", .{key});
-//     }
-// }
