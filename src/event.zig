@@ -469,3 +469,33 @@ fn parseMouseAction(action: u8) !Mouse {
     return mouse_event;
 }
 
+const TestReader = struct {
+    data: []const u8,
+    pos: usize = 0,
+
+    pub fn readByte(self: *TestReader) !u8 {
+        if (self.pos >= self.data.len) return error.EndOfStream;
+        defer self.pos += 1;
+        return self.data[self.pos];
+    }
+};
+
+test "event.next parses >20 bytes unicode string" {
+    const utf8_bytes = "1234567890123456789ñ";
+    const expected_codepoints = [_]u21{
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0xf1,
+    };
+
+    var reader = TestReader{ .data = utf8_bytes };
+    var i: usize = 0;
+    while (i < expected_codepoints.len) : (i += 1) {
+        const ev = try next(&reader);
+        switch (ev) {
+            .key => |k| switch (k) {
+                .char => |c| try std.testing.expect(c == expected_codepoints[i]),
+                else => try std.testing.expect(false),
+            },
+            else => try std.testing.expect(false),
+        }
+    }
+}
