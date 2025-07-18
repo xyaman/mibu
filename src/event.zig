@@ -170,6 +170,7 @@ pub const MouseButton = enum {
 /// When used in canonical mode, the user needs to press Enter to receive the event.
 /// When raw terminal mode is activated, the function waits up to the specified timeout
 /// for at least one event before returning.
+/// `in` must have reader method
 pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
     switch (@import("builtin").os.tag) {
         .linux => return nextWithTimeoutPosix(in, timeout_ms),
@@ -198,16 +199,33 @@ fn readByteOrNull(reader: anytype) !?u8 {
     };
 }
 
+fn maybeReadNextByte(in: anytype, timeout_ms: i32) !?u8 {
+    const fd = in.handle;
+    var polls: [1]std.posix.pollfd = .{.{
+        .fd = fd,
+        .events = std.posix.POLL.IN,
+        .revents = 0,
+    }};
+
+    if ((try std.posix.poll(&polls, timeout_ms)) > 0) {
+        return try readByteOrNull(in.reader());
+    }
+
+    return null;
+}
+
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is activated it will block until read at least one event.
 ///
-/// `in`: needs to be reader
-pub fn next(reader: anytype) !Event {
+/// `in` must have reader method
+pub fn next(in: anytype) !Event {
+    const reader = in.reader();
     const c0 = try readByteOrNull(reader) orelse return .none;
     switch (c0) {
         '\x1b' => {
-            if (try readByteOrNull(reader)) |c1| switch (c1) {
+            // wait 30ms for another byte (to distinguish ESC from escape sequence)
+            if (try maybeReadNextByte(in, 30)) |c1| switch (c1) {
                 // fn (1 - 4)
                 // O - 0x6f - 111
                 '\x4f' => {
@@ -469,14 +487,21 @@ fn parseMouseAction(action: u8) !Mouse {
     return mouse_event;
 }
 
-const TestReader = struct {
+const TestIn = struct {
     data: []const u8,
     pos: usize = 0,
 
-    pub fn readByte(self: *TestReader) !u8 {
+    // dummy fd for test
+    handle: std.posix.fd_t = 0,
+
+    pub fn readByte(self: *@This()) !u8 {
         if (self.pos >= self.data.len) return error.EndOfStream;
         defer self.pos += 1;
         return self.data[self.pos];
+    }
+
+    pub fn reader(self: *@This()) *@This() {
+        return self;
     }
 };
 
@@ -486,7 +511,7 @@ test "event.next parses >20 bytes unicode string" {
         '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0xf1,
     };
 
-    var reader = TestReader{ .data = utf8_bytes };
+    var reader = TestIn{ .data = utf8_bytes };
     var i: usize = 0;
     while (i < expected_codepoints.len) : (i += 1) {
         const ev = try next(&reader);
