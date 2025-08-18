@@ -199,19 +199,15 @@ fn readByteOrNull(reader: anytype) !?u8 {
     };
 }
 
-fn maybeReadNextByte(in: anytype, timeout_ms: i32) !?u8 {
-    const fd = in.handle;
+/// Returns true if there are events, false otherwise
+fn terminalHasEvents(reader: anytype) !bool {
     var polls: [1]std.posix.pollfd = .{.{
-        .fd = fd,
+        .fd = reader.handle,
         .events = std.posix.POLL.IN,
         .revents = 0,
     }};
 
-    if ((try std.posix.poll(&polls, timeout_ms)) > 0) {
-        return try readByteOrNull(in.reader());
-    }
-
-    return null;
+    return (try std.posix.poll(&polls, 0)) > 0;
 }
 
 /// Returns the next event received.
@@ -224,8 +220,13 @@ pub fn next(in: anytype) !Event {
     const c0 = try readByteOrNull(reader) orelse return .none;
     switch (c0) {
         '\x1b' => {
-            // wait 30ms for another byte (to distinguish ESC from escape sequence)
-            if (try maybeReadNextByte(in, 30)) |c1| switch (c1) {
+            const has_events = try terminalHasEvents(in);
+            if (!has_events) {
+                return Event{ .key = .esc };
+            }
+
+            const c1 = try readByteOrNull(reader) orelse return .none;
+            switch (c1) {
                 // fn (1 - 4)
                 // O - 0x6f - 111
                 '\x4f' => {
@@ -241,8 +242,6 @@ pub fn next(in: anytype) !Event {
                 },
                 '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
                 else => return Event{ .key = Key{ .alt = c1 } },
-            } else {
-                return Event{ .key = .esc };
             }
         },
 
