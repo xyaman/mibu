@@ -1,6 +1,6 @@
 #  mibu
 
-**mibu** is pure Zig library for low-level terminal manipulation.
+**mibu** is a pure Zig library for low-level terminal manipulation.
 
 **Status:** This library is in beta. Breaking changes may occur.
 
@@ -9,7 +9,7 @@
 ## Features
 - Zero heap allocations.
 - Full UTF-8 character support.
-- Terminal mode control via Termios, including raw mode.
+- Terminal raw mode support.
 - Text styling: bold, italic, underline.
 - Color output: supports 8, 16, and true color (24-bit).
 - Cursor movement and positioning functions.
@@ -34,7 +34,7 @@ const mibu_dep = b.dependency("mibu", .{
 exe.root_module.addImport("mibu", mibu_dep.module("mibu"));
 ```
 
-Use the library in your zig code:
+Use the library in your Zig code:
 ```zig
 const std = @import("std");
 const mibu = @import("mibu");
@@ -47,7 +47,7 @@ pub fn main() void {
 
 ## Getting Started
 
-See the [examples directory](examples/)
+See the [examples directory](examples/).
 
 You can run the examples with the following command:
 ```bash
@@ -64,6 +64,6 @@ zig build alternate_screen
 
 - [ ] Mouse: Click and move (drag)
 
-# Projects that use `mibu`
+## Projects that use `mibu`
 - [zigtris](https://github.com/ringtailsoftware/zigtris)
-- [chip8 (wip)](https://github.com/xyaman/chip8)
+- [chip8 emulator (wip)](https://github.com/xyaman/chip8)
