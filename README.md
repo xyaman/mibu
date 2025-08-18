@@ -1,33 +1,30 @@
-> [!WARNING]
-> This library is a WIP and may have breaking changes and bugs.
-
 #  mibu
 
 **mibu** is pure Zig library for low-level terminal manipulation.
 
+**Status:** This library is in beta. Breaking changes may occur.
+
 > Tested with zig version `2024.11.0-mach` (0.14.0-dev.2577+271452d22)
 
 ## Features
-- Allocation free.
-- UTF-8 support.
-- Style (bold, italic, underline, etc).
-- Termios / Raw mode.
-- 8-16 colors.
-- True Color (24-bit RGB).
-- Cursor controls.
-- Clear(Erase) functions.
-- Key events.
-- Partial Mouse events. (Click, Scroll, Release)
+- Zero heap allocations.
+- Full UTF-8 character support.
+- Terminal mode control via Termios, including raw mode.
+- Text styling: bold, italic, underline.
+- Color output: supports 8, 16, and true color (24-bit).
+- Cursor movement and positioning functions.
+- Screen clearing and erasing utilities.
+- Key event handling: codepoints, modifiers, and special keys.
+- Mouse event handling: click, scroll, and release actions.
 
 ## How to use
 
-First we add the library as a dependency in our `build.zig.zon` file with the 
-following command.
+Add the library as a dependency in your `build.zig.zon` file:
 ```bash
 zig fetch --save git+https://github.com/xyaman/mibu
 ```
 
-And we add it to `build.zig` file.
+Import the dependency in your `build.zig` file:
 ```zig
 const mibu_dep = b.dependency("mibu", .{
     .target = target,
@@ -37,7 +34,7 @@ const mibu_dep = b.dependency("mibu", .{
 exe.root_module.addImport("mibu", mibu_dep.module("mibu"));
 ```
 
-Now we can use the library in our code.
+Use the library in your zig code:
 ```zig
 const std = @import("std");
 const mibu = @import("mibu");
@@ -65,14 +62,7 @@ zig build alternate_screen
 
 ## TODO
 
-- Mouse events
-    - [x] Left, middle, right click
-    - [x] Scroll up, down
-    - [x] Release
-    - [x] Modifiers (shift, ctrl, alt)
-    - [x] Move 
-    - [ ] Click and move (drag)
-- Support all keys events
+- [ ] Mouse: Click and move (drag)
 
 # Projects that use `mibu`
 - [zigtris](https://github.com/ringtailsoftware/zigtris)
