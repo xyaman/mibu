@@ -420,6 +420,10 @@ pub fn next(in: anytype) !Event {
                 else => unreachable,
             };
 
+            if (ch >= 'A' and ch <= 'Z') {
+                return Event{ .key = .{ .char = ch + 32, .mods = .{ .shift = true } } };
+            }
+
             return Event{ .key = .{ .char = ch } };
         },
     }
