@@ -3,68 +3,17 @@ const io = std.io;
 const unicode = std.unicode;
 const windows = std.os.windows;
 
-const cursor = @import("cursor.zig");
-
-pub const Event = union(enum) {
-    key: Key,
-    mouse: Mouse,
-    resize,
-    not_supported,
-    none, // polling timeout
+pub const Modifiers = packed struct {
+    shift: bool = false,
+    alt: bool = false,
+    ctrl: bool = false,
 };
 
-const Key = union(enum) {
-    // unicode character
-    char: u21,
-
-    // TODO: do we really need u21?
-    ctrl: u21,
-    alt: u21,
-    ctrl_alt: u21,
-    fun: u8,
-
-    // arrow keys
-    up: void,
-    down: void,
-    left: void,
-    right: void,
-
-    // shift + arrow keys
-    shift_up: void,
-    shift_down: void,
-    shift_left: void,
-    shift_right: void,
-
-    // ctrl + arrow keys
-    ctrl_up: void,
-    ctrl_down: void,
-    ctrl_left: void,
-    ctrl_right: void,
-
-    // ctrl + shift + arrow keys
-    ctrl_shift_up: void,
-    ctrl_shift_down: void,
-    ctrl_shift_left: void,
-    ctrl_shift_right: void,
-
-    // ctrl + alt + arrow keys
-    ctrl_alt_up: void,
-    ctrl_alt_down: void,
-    ctrl_alt_left: void,
-    ctrl_alt_right: void,
-
-    // special keys
-    esc: void,
-    backspace: void,
-    delete: void,
-    insert: void,
-    enter: void,
-    page_up: void,
-    page_down: void,
-    home: void,
-    end: void,
-
-    __non_exhaustive: void,
+pub const Key = struct {
+    mods: Modifiers = .{},
+    char: ?u21 = null,
+    /// Special key code (none if regular char)
+    special_key: SpecialKey = .none,
 
     pub fn format(
         value: Key,
@@ -74,59 +23,68 @@ const Key = union(enum) {
     ) !void {
         _ = options;
         _ = fmt;
-        try writer.writeAll("Key.");
+        try writer.writeAll("Key{ ");
 
-        switch (value) {
-            .ctrl => |c| try std.fmt.format(writer, "ctrl({u})", .{c}),
-            .alt => |c| try std.fmt.format(writer, "alt({u})", .{c}),
-            .ctrl_alt => |c| try std.fmt.format(writer, "ctrl_alt({u})", .{c}),
-            .char => |c| try std.fmt.format(writer, "char({u})", .{c}),
-            .fun => |d| try std.fmt.format(writer, "fun({d})", .{d}),
+        var first = true;
 
-            // arrow keys
-            .up => try std.fmt.format(writer, "up", .{}),
-            .down => try std.fmt.format(writer, "down", .{}),
-            .left => try std.fmt.format(writer, "left", .{}),
-            .right => try std.fmt.format(writer, "right", .{}),
-
-            // shift + arrow keys
-            .shift_up => try std.fmt.format(writer, "shift_up", .{}),
-            .shift_down => try std.fmt.format(writer, "shift_down", .{}),
-            .shift_left => try std.fmt.format(writer, "shift_left", .{}),
-            .shift_right => try std.fmt.format(writer, "shift_right", .{}),
-
-            // ctrl + arrow keys
-            .ctrl_up => try std.fmt.format(writer, "ctrl_up", .{}),
-            .ctrl_down => try std.fmt.format(writer, "ctrl_down", .{}),
-            .ctrl_left => try std.fmt.format(writer, "ctrl_left", .{}),
-            .ctrl_right => try std.fmt.format(writer, "ctrl_right", .{}),
-
-            // ctrl + shift + arrow keys
-            .ctrl_shift_up => try std.fmt.format(writer, "ctrl_shift_up", .{}),
-            .ctrl_shift_down => try std.fmt.format(writer, "ctrl_shift_down", .{}),
-            .ctrl_shift_left => try std.fmt.format(writer, "ctrl_shift_left", .{}),
-            .ctrl_shift_right => try std.fmt.format(writer, "ctrl_shift_right", .{}),
-
-            // ctrl + alt + arrow keys
-            .ctrl_alt_up => try std.fmt.format(writer, "ctrl_alt_up", .{}),
-            .ctrl_alt_down => try std.fmt.format(writer, "ctrl_alt_down", .{}),
-            .ctrl_alt_left => try std.fmt.format(writer, "ctrl_alt_left", .{}),
-            .ctrl_alt_right => try std.fmt.format(writer, "ctrl_alt_right", .{}),
-
-            // special keys
-            .esc => try std.fmt.format(writer, "esc", .{}),
-            .enter => try std.fmt.format(writer, "enter", .{}),
-            .backspace => try std.fmt.format(writer, "backspace", .{}),
-            .delete => try std.fmt.format(writer, "delete", .{}),
-            .insert => try std.fmt.format(writer, "insert", .{}),
-            .page_up => try std.fmt.format(writer, "page_up", .{}),
-            .page_down => try std.fmt.format(writer, "page_down", .{}),
-            .home => try std.fmt.format(writer, "home", .{}),
-            .end => try std.fmt.format(writer, "end", .{}),
-
-            else => try std.fmt.format(writer, "Not available yet", .{}),
+        if (value.mods.shift or value.mods.alt or value.mods.ctrl) {
+            try writer.writeAll("mods: ");
+            try std.fmt.format(writer, "{{shift: {}, alt: {}, ctrl: {}}}", .{ value.mods.shift, value.mods.alt, value.mods.ctrl });
+            first = false;
         }
+
+        if (value.char != null) {
+            if (!first) try writer.writeAll(", ");
+            try std.fmt.format(writer, "char: {u}", .{value.char.?});
+            first = false;
+        }
+
+        if (value.special_key != .none) {
+            if (!first) try writer.writeAll(", ");
+            try std.fmt.format(writer, "special_key: {s}", .{@tagName(value.special_key)});
+        }
+
+        try writer.writeAll(" }");
     }
+};
+
+pub const SpecialKey = enum {
+    none,
+    up,
+    down,
+    left,
+    right,
+    home,
+    end,
+    page_up,
+    page_down,
+    insert,
+    delete,
+    f1,
+    f2,
+    f3,
+    f4,
+    f5,
+    f6,
+    f7,
+    f8,
+    f9,
+    f10,
+    f11,
+    f12,
+    esc,
+    backspace,
+    tab,
+    enter,
+};
+
+pub const Event = union(enum) {
+    key: Key,
+    mouse: Mouse,
+    resize,
+    invalid,
+    timeout,
+    none,
 };
 
 // https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
@@ -165,7 +123,7 @@ pub const MouseButton = enum {
 };
 
 /// Returns the next event received. If no event is received within the timeout,
-/// it returns `.none`. Timeout is in miliseconds
+/// it returns `.timeout`. Timeout is in miliseconds
 ///
 /// When used in canonical mode, the user needs to press Enter to receive the event.
 /// When raw terminal mode is activated, the function waits up to the specified timeout
@@ -189,7 +147,7 @@ fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
         return next(in);
     }
 
-    return .none;
+    return .timeout;
 }
 
 fn readByteOrNull(reader: anytype) !?u8 {
@@ -200,7 +158,7 @@ fn readByteOrNull(reader: anytype) !?u8 {
 }
 
 /// Returns true if there are events, false otherwise
-fn terminalHasEvents(reader: anytype) !bool {
+fn terminalHasEvent(reader: anytype) !bool {
     var polls: [1]std.posix.pollfd = .{.{
         .fd = reader.handle,
         .events = std.posix.POLL.IN,
@@ -208,6 +166,202 @@ fn terminalHasEvents(reader: anytype) !bool {
     }};
 
     return (try std.posix.poll(&polls, 0)) > 0;
+}
+
+fn parseEscapeSequence(reader: anytype) !Event {
+    const c1 = try readByteOrNull(reader) orelse return .invalid;
+
+    switch (c1) {
+        '[' => {
+            const c2 = try readByteOrNull(reader) orelse return .invalid;
+            switch (c2) {
+                'A' => return Event{ .key = .{ .special_key = .up } },
+                'B' => return Event{ .key = .{ .special_key = .down } },
+                'C' => return Event{ .key = .{ .special_key = .right } },
+                'D' => return Event{ .key = .{ .special_key = .left } },
+                '0'...'9' => {
+                    // handle complex/large escape sequences
+                    var buffer: [33]u8 = [_]u8{0} ** 33;
+                    buffer[0] = c2;
+
+                    var i: usize = 1;
+                    while (i < 32) : (i += 1) {
+                        const c = try readByteOrNull(reader) orelse break;
+                        buffer[i] = c;
+                        // read until we found a sequence terminator
+                        if (c == '~' or c == 'M' or (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z')) {
+                            break;
+                        }
+                    }
+
+                    i += 1;
+                    buffer[i] = 0;
+
+                    // special keys
+                    if (std.mem.eql(u8, buffer[0..i], "1~")) {
+                        return Event{ .key = .{ .special_key = .home } };
+                    } else if (std.mem.eql(u8, buffer[0..1], "2~")) {
+                        return Event{ .key = .{ .special_key = .insert } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "3~")) {
+                        return Event{ .key = .{ .special_key = .delete } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "4~")) {
+                        return Event{ .key = .{ .special_key = .end } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "5~")) {
+                        return Event{ .key = .{ .special_key = .page_up } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "6~")) {
+                        return Event{ .key = .{ .special_key = .page_down } };
+                    }
+
+                    // fn-keys
+                    if (std.mem.eql(u8, buffer[0..i], "11~")) {
+                        return Event{ .key = .{ .special_key = .f1 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "12~")) {
+                        return Event{ .key = .{ .special_key = .f2 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "13~")) {
+                        return Event{ .key = .{ .special_key = .f3 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "14~")) {
+                        return Event{ .key = .{ .special_key = .f4 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "15~")) {
+                        return Event{ .key = .{ .special_key = .f5 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "17~")) {
+                        return Event{ .key = .{ .special_key = .f6 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "18~")) {
+                        return Event{ .key = .{ .special_key = .f7 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "19~")) {
+                        return Event{ .key = .{ .special_key = .f8 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "20~")) {
+                        return Event{ .key = .{ .special_key = .f9 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "21~")) {
+                        return Event{ .key = .{ .special_key = .f10 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "23~")) {
+                        return Event{ .key = .{ .special_key = .f11 } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "24~")) {
+                        return Event{ .key = .{ .special_key = .f12 } };
+                    }
+
+                    // Modified arrow keys - Shift (modifier 2)
+                    if (std.mem.eql(u8, buffer[0..i], "1;2A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;2B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;2C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;2D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .shift = true } } };
+                    }
+
+                    // Modified arrow keys - Alt (modifier 3)
+                    if (std.mem.eql(u8, buffer[0..i], "1;3A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;3B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;3C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;3D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .alt = true } } };
+                    }
+
+                    // Modified arrow keys - Shift+Alt (modifier 4)
+                    if (std.mem.eql(u8, buffer[0..i], "1;4A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;4B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;4C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;4D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .alt = true, .shift = true } } };
+                    }
+
+                    // Modified arrow keys - Ctrl (modifier 5)
+                    if (std.mem.eql(u8, buffer[0..i], "1;5A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .ctrl = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;5B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .ctrl = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;5C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .ctrl = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;5D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .ctrl = true } } };
+                    }
+
+                    // Modified arrow keys - Ctrl+Shift (modifier 6)
+                    if (std.mem.eql(u8, buffer[0..i], "1;6A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .ctrl = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;6B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .ctrl = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;6C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .ctrl = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;6D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .ctrl = true, .shift = true } } };
+                    }
+
+                    // Modified arrow keys - Ctrl+Alt (modifier 7)
+                    if (std.mem.eql(u8, buffer[0..i], "1;7A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .ctrl = true, .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;7B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .ctrl = true, .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;7C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .ctrl = true, .alt = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;7D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .ctrl = true, .alt = true } } };
+                    }
+
+                    // Modified arrow keys - Ctrl+Shift+Alt (modifier 8)
+                    if (std.mem.eql(u8, buffer[0..i], "1;8A")) {
+                        return Event{ .key = .{ .special_key = .up, .mods = .{ .ctrl = true, .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;8B")) {
+                        return Event{ .key = .{ .special_key = .down, .mods = .{ .ctrl = true, .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;8C")) {
+                        return Event{ .key = .{ .special_key = .right, .mods = .{ .ctrl = true, .alt = true, .shift = true } } };
+                    } else if (std.mem.eql(u8, buffer[0..i], "1;8D")) {
+                        return Event{ .key = .{ .special_key = .left, .mods = .{ .ctrl = true, .alt = true, .shift = true } } };
+                    }
+                },
+                'M' => {
+                    // parse mouse sequences (SGR format: <button>;x;y M/m)
+                    const mouseAction = try readByteOrNull(reader);
+                    const x = try readByteOrNull(reader);
+                    const y = try readByteOrNull(reader);
+
+                    if (x == null or y == null or mouseAction == null) {
+                        return .invalid;
+                    }
+
+                    var mouse_event = parseMouseAction(mouseAction.?) catch {
+                        return .invalid;
+                    };
+
+                    // x and y are 1-based
+                    mouse_event.x = x.? - 1;
+                    mouse_event.y = y.? - 1;
+
+                    return Event{ .mouse = mouse_event };
+                },
+
+                else => return .invalid,
+            }
+        },
+        // ss3 sequences
+        'O' => {
+            const c2 = try readByteOrNull(reader) orelse return .invalid;
+            switch (c2) {
+                'P' => return Event{ .key = .{ .special_key = .f1 } },
+                'Q' => return Event{ .key = .{ .special_key = .f2 } },
+                'R' => return Event{ .key = .{ .special_key = .f3 } },
+                'S' => return Event{ .key = .{ .special_key = .f4 } },
+                'H' => return Event{ .key = .{ .special_key = .home } },
+                'F' => return Event{ .key = .{ .special_key = .end } },
+                else => return .invalid,
+            }
+        },
+
+        // ctrl + alt
+        '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = .{ .char = c1 + 0x60, .mods = .{ .ctrl = true, .alt = true } } },
+
+        // alt
+        else => return Event{ .key = .{ .char = c1, .mods = .{ .alt = true } } },
+    }
+
+    return .invalid;
 }
 
 /// Returns the next event received.
@@ -219,49 +373,45 @@ pub fn next(in: anytype) !Event {
     const reader = in.reader();
     const c0 = try readByteOrNull(reader) orelse return .none;
     switch (c0) {
+        // Handle escape sequences
         '\x1b' => {
-            const has_events = try terminalHasEvents(in);
+            const has_events = try terminalHasEvent(in);
             if (!has_events) {
-                return Event{ .key = .esc };
-            }
-
-            const c1 = try readByteOrNull(reader) orelse return .none;
-            switch (c1) {
-                // fn (1 - 4)
-                // O - 0x6f - 111
-                '\x4f' => {
-                    const c2 = try readByteOrNull(reader);
-                    if (c2 != null) {
-                        return Event{ .key = Key{ .fun = (1 + c2.? - '\x50') } };
-                    }
-                },
-
-                //csi
-                '[' => {
-                    return parseCsi(reader);
-                },
-                '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl_alt = c1 + '\x60' } },
-                else => return Event{ .key = Key{ .alt = c1 } },
+                return Event{ .key = .{ .special_key = .esc } };
+            } else {
+                return parseEscapeSequence(reader);
             }
         },
 
-        // tab is equal to ctrl-i
+        // Handle control characters (and special characters derived)
+        // Backspace
+        '\x08', '\x7f' => return Event{ .key = .{ .special_key = .backspace } },
 
-        // ctrl keys (avoids ctrl-m)
-        '\x01'...'\x0C', '\x0E'...'\x1A' => return Event{ .key = Key{ .ctrl = c0 + '\x60' } },
+        // Tab
+        '\x09' => return Event{ .key = .{ .special_key = .tab } },
 
-        // special chars
-        '\x7f' => return Event{ .key = .backspace },
-        '\x0D' => return Event{ .key = .enter },
+        // Enter (LF / CR)
+        '\x0a', '\x0d' => return Event{ .key = .{ .special_key = .enter } },
 
-        // unicode characters
+        // Ctrl+A..Ctrl+Z, excluding 0x08, 0x09, 0x0a, 0x0d
+        '\x01'...'\x07', '\x0b'...'\x0c', '\x0e'...'\x1a' => {
+            const key = Key{
+                .mods = .{ .ctrl = true },
+                .char = c0 + 'a' - 0x01,
+            };
+            return Event{ .key = key };
+        },
+
+        // utf-8 characters
         else => {
             const len = try unicode.utf8ByteSequenceLength(c0);
             var buf: [4]u8 = undefined;
             buf[0] = c0;
+
             for (1..len) |i| {
-                buf[i] = (try readByteOrNull(reader)).?;
+                buf[i] = try readByteOrNull(reader) orelse return .invalid;
             }
+
             const ch = switch (len) {
                 1 => buf[0],
                 2 => try unicode.utf8Decode2(buf[0..2].*),
@@ -269,152 +419,12 @@ pub fn next(in: anytype) !Event {
                 4 => try unicode.utf8Decode4(buf[0..4].*),
                 else => unreachable,
             };
-            return Event{ .key = Key{ .char = ch } };
+
+            return Event{ .key = .{ .char = ch } };
         },
     }
 
-    return .none;
-}
-
-fn parseCsi(reader: anytype) !Event {
-    const c0 = try readByteOrNull(reader);
-    if (c0 == null) {
-        return .not_supported;
-    }
-    switch (c0.?) {
-        // keys
-        'A' => return Event{ .key = .up },
-        'B' => return Event{ .key = .down },
-        'C' => return Event{ .key = .right },
-        'D' => return Event{ .key = .left },
-
-        '1' => {
-            const c1 = try readByteOrNull(reader);
-            if (c1 == null) {
-                return .not_supported;
-            }
-
-            switch (c1.?) {
-                '5' => return Event{ .key = Key{ .fun = 5 } },
-                '7' => return Event{ .key = Key{ .fun = 6 } },
-                '8' => return Event{ .key = Key{ .fun = 7 } },
-                '9' => return Event{ .key = Key{ .fun = 8 } },
-                '~' => return Event{ .key = .home },
-                // shift + arrow keys
-                ';' => {
-                    const c2 = try readByteOrNull(reader);
-                    if (c2 == null) {
-                        return .not_supported;
-                    }
-                    switch (c2.?) {
-                        '2' => {
-                            const c3 = try readByteOrNull(reader);
-                            if (c3 == null) {
-                                return .not_supported;
-                            }
-                            switch (c3.?) {
-                                'A' => return Event{ .key = .shift_up },
-                                'B' => return Event{ .key = .shift_down },
-                                'C' => return Event{ .key = .shift_right },
-                                'D' => return Event{ .key = .shift_left },
-                                else => {},
-                            }
-                        },
-                        '5' => {
-                            const c3 = try readByteOrNull(reader);
-                            if (c3 == null) {
-                                return .not_supported;
-                            }
-                            switch (c3.?) {
-                                'A' => return Event{ .key = .ctrl_up },
-                                'B' => return Event{ .key = .ctrl_down },
-                                'C' => return Event{ .key = .ctrl_right },
-                                'D' => return Event{ .key = .ctrl_left },
-                                else => {},
-                            }
-                        },
-                        '6' => {
-                            const c3 = try readByteOrNull(reader);
-                            if (c3 == null) {
-                                return .not_supported;
-                            }
-                            switch (c3.?) {
-                                'A' => return Event{ .key = .ctrl_shift_up },
-                                'B' => return Event{ .key = .ctrl_shift_down },
-                                'C' => return Event{ .key = .ctrl_shift_right },
-                                'D' => return Event{ .key = .ctrl_shift_left },
-                                else => {},
-                            }
-                        },
-
-                        '7' => {
-                            const c3 = try readByteOrNull(reader);
-                            if (c3 == null) {
-                                return .not_supported;
-                            }
-                            switch (c3.?) {
-                                'A' => return Event{ .key = .ctrl_alt_up },
-                                'B' => return Event{ .key = .ctrl_alt_down },
-                                'C' => return Event{ .key = .ctrl_alt_right },
-                                'D' => return Event{ .key = .ctrl_alt_left },
-                                else => {},
-                            }
-                        },
-
-                        else => {},
-                    }
-                },
-                else => {},
-            }
-        },
-
-        '2' => {
-            const c3 = try readByteOrNull(reader);
-            if (c3 == null) {
-                return .not_supported;
-            }
-            switch (c3.?) {
-                '0' => return Event{ .key = Key{ .fun = 9 } },
-                '1' => return Event{ .key = Key{ .fun = 10 } },
-                '3' => return Event{ .key = Key{ .fun = 11 } },
-                '4' => return Event{ .key = Key{ .fun = 12 } },
-                '~' => return Event{ .key = .insert },
-                else => {},
-            }
-        },
-
-        '3' => return Event{ .key = .delete },
-        '4' => return Event{ .key = .end },
-        '5' => return Event{ .key = .page_up },
-        '6' => return Event{ .key = .page_down },
-
-        // Mouse Events
-        // On button press, xterm sends CSI MCbCxCy (6 characters) = "\x1b[MbCxCy"
-        // -   Cb is button-1, where button is 1, 2 or 3.
-        // -   Cx and Cy are the x and y coordinates of the mouse when the button
-        //     was pressed.
-        'M' => blk: {
-            const mouseAction = try readByteOrNull(reader);
-            const x = try readByteOrNull(reader);
-            const y = try readByteOrNull(reader);
-            if (x == null or y == null or mouseAction == null) {
-                break :blk;
-            }
-
-            var mouse_event = parseMouseAction(mouseAction.?) catch {
-                return .not_supported;
-            };
-            // x and y are 1-based
-            mouse_event.x = x.? - 1;
-            mouse_event.y = y.? - 1;
-
-            return Event{ .mouse = mouse_event };
-        },
-
-        else => {},
-    }
-
-    return .not_supported;
+    return .invalid;
 }
 
 fn parseMouseAction(action: u8) !Mouse {
@@ -515,9 +525,8 @@ test "event.next parses >20 bytes unicode string" {
     while (i < expected_codepoints.len) : (i += 1) {
         const ev = try next(&reader);
         switch (ev) {
-            .key => |k| switch (k) {
-                .char => |c| try std.testing.expect(c == expected_codepoints[i]),
-                else => try std.testing.expect(false),
+            .key => |k| {
+                try std.testing.expect(k.char == expected_codepoints[i]);
             },
             else => try std.testing.expect(false),
         }

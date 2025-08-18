@@ -30,22 +30,17 @@ pub fn main() !void {
     try stdout.writer().print("Press q or Ctrl-C to exit...\n\r", .{});
 
     while (true) {
-        // const next = try events.nextWithTimeout(stdin, 1000);
-        const next = try events.next(stdin);
+        const next = try events.nextWithTimeout(stdin, 1000);
         switch (next) {
-            .key => |k| switch (k) {
-                .char => |c| switch (c) {
-                    'q' => break,
-                    else => try stdout.writer().print("{u}\n\r", .{c}),
-                },
-                .ctrl => |c| switch (c) {
-                    'c' => break,
-                    else => try stdout.writer().print("ctrl+{u}\n\r", .{c}),
-                },
-                else => try stdout.writer().print("{s}\n\r", .{k}),
+            .key => |k| {
+                if (k.mods.ctrl and k.char == 'c') {
+                    break;
+                }
+
+                try stdout.writer().print("Pressed: {s}\n\r", .{k});
             },
             .mouse => |m| try stdout.writer().print("Mouse: {s}\n\r", .{m}),
-            .none => try stdout.writer().print("Timeout.\n\r", .{}),
+            .timeout => try stdout.writer().print("Timeout.\n\r", .{}),
 
             // ex. mouse events not supported yet
             else => try stdout.writer().print("Event: {any}\n\r", .{next}),
