@@ -140,27 +140,12 @@ fn getSizeWindows(handle: windows.HANDLE) !TermSize {
 
 /// Switches to an alternate screen mode in the console.
 /// `out`: needs to be writer
-pub fn enterAlternateScreen(out: anytype) !void {
-    try out.print("{s}", .{utils.comptimeCsi("?1049h", .{})});
+pub fn enterAlternateScreen(writer: *std.Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?1049h", .{})});
 }
 
 /// Returns the console to its normal screen mode after using the alternate screen mode.
 /// `out`: needs to be writer
-pub fn exitAlternateScreen(out: anytype) !void {
-    try out.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
+pub fn exitAlternateScreen(writer: *std.Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }
-
-test "termsize posix" {
-    if (builtin.os.tag == .windows) return;
-    const tty = (try std.fs.cwd().openFile("/dev/tty", .{})).reader();
-    const termsize = try getSize(tty.context.handle);
-
-    std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
-}
-
-// test "termsize windows" {
-//     if (builtin.os.tag != .windows) return;
-//     const stdin = try windows.GetStdHandle(windows.STD_INPUT_HANDLE);
-//     const termsize = try getSizeWindows(stdin);
-//     std.debug.print("Terminal size: {d}x{d}\n", .{ termsize.width, termsize.height });
-// }

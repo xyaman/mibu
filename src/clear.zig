@@ -8,7 +8,6 @@ const lib = @import("main.zig");
 const utils = lib.utils;
 
 pub const print = struct {
-
     /// Clear from cursor until end of screen
     pub const screen_from_cursor = utils.comptimeCsi("0J", .{});
 
@@ -29,31 +28,31 @@ pub const print = struct {
 };
 
 /// Clear from cursor until end of screen
-pub fn screenFromCursor(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_screen_from_cursor, .{});
+pub fn screenFromCursor(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_screen_from_cursor, .{});
 }
 
 /// Clear from cursor to beginning of screen
-pub fn screenToCursor(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_screen_to_cursor, .{});
+pub fn screenToCursor(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_screen_to_cursor, .{});
 }
 
 /// Clear all screen
-pub fn all(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_all, .{});
+pub fn all(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_all, .{});
 }
 
 /// Clear from cursor to end of line
-pub fn line_from_cursor(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_line_from_cursor, .{});
+pub fn line_from_cursor(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_line_from_cursor, .{});
 }
 
 /// Clear start of line to the cursor
-pub fn line_to_cursor(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_line_to_cursor, .{});
+pub fn line_to_cursor(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_line_to_cursor, .{});
 }
 
 /// Clear entire line
-pub fn entire_line(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.clear_line, .{});
+pub fn entire_line(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.clear_line, .{});
 }

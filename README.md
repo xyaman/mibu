@@ -4,11 +4,11 @@
 
 **Status:** This library is in beta. Breaking changes may occur.
 
-> Tested with zig version `2024.11.0-mach` (0.14.0-dev.2577+271452d22)
+> Tested with zig version `0.15.1` (release)
 
 ## Features
 - Zero heap allocations.
-- Full UTF-8 character support.
+- UTF-8 character support.
 - Terminal raw mode support.
 - Text styling: bold, italic, underline.
 - Color output: supports 8, 16, and true color (24-bit).
@@ -26,11 +26,7 @@ zig fetch --save git+https://github.com/xyaman/mibu
 
 Import the dependency in your `build.zig` file:
 ```zig
-const mibu_dep = b.dependency("mibu", .{
-    .target = target,
-    .optimize = optimize,
-});
-
+const mibu_dep = b.dependency("mibu", .{});
 exe.root_module.addImport("mibu", mibu_dep.module("mibu"));
 ```
 

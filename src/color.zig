@@ -45,26 +45,26 @@ pub const print = struct {
 };
 
 /// Writes the escape sequence code to change foreground to `color` (using 256 colors)
-pub fn fg256(writer: anytype, color: Color) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.fg_256 ++ "{d}m", .{@intFromEnum(color)});
+pub fn fg256(writer: *std.Io.Writer, color: Color) !void {
+    return writer.print(utils.csi ++ utils.fg_256 ++ "{d}m", .{@intFromEnum(color)});
 }
 
 /// Writes the escape sequence code to change background to `color` (using 256 colors)
-pub fn bg256(writer: anytype, color: Color) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.bg_256 ++ "{d}m", .{@intFromEnum(color)});
+pub fn bg256(writer: *std.Io.Writer, color: Color) !void {
+    return writer.print(utils.csi ++ utils.bg_256 ++ "{d}m", .{@intFromEnum(color)});
 }
 
 /// Writes the escape sequence code to change foreground to rgb color
-pub fn fgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
+pub fn fgRGB(writer: *std.Io.Writer, r: u8, g: u8, b: u8) !void {
+    return writer.print(utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
 }
 
 /// Writes the escape sequence code to change background to rgb color
-pub fn bgRGB(writer: anytype, r: u8, g: u8, b: u8) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
+pub fn bgRGB(writer: *std.Io.Writer, r: u8, g: u8, b: u8) !void {
+    return writer.print(utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
 }
 
 /// Writes the escape code to reset style and color
-pub fn resetAll(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ utils.reset_all, .{});
+pub fn resetAll(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ utils.reset_all, .{});
 }

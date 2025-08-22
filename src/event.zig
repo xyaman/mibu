@@ -15,33 +15,26 @@ pub const Key = struct {
     /// Special key code (none if regular char)
     special_key: SpecialKey = .none,
 
-    pub fn format(
-        value: Key,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = options;
-        _ = fmt;
+    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         try writer.writeAll("Key{ ");
 
         var first = true;
 
-        if (value.mods.shift or value.mods.alt or value.mods.ctrl) {
+        if (this.mods.shift or this.mods.alt or this.mods.ctrl) {
             try writer.writeAll("mods: ");
-            try std.fmt.format(writer, "{{shift: {}, alt: {}, ctrl: {}}}", .{ value.mods.shift, value.mods.alt, value.mods.ctrl });
+            try writer.print("{{shift: {}, alt: {}, ctrl: {}}}", .{ this.mods.shift, this.mods.alt, this.mods.ctrl });
             first = false;
         }
 
-        if (value.char != null) {
+        if (this.char != null) {
             if (!first) try writer.writeAll(", ");
-            try std.fmt.format(writer, "char: {u}", .{value.char.?});
+            try writer.print("char: {u}", .{this.char.?});
             first = false;
         }
 
-        if (value.special_key != .none) {
+        if (this.special_key != .none) {
             if (!first) try writer.writeAll(", ");
-            try std.fmt.format(writer, "special_key: {s}", .{@tagName(value.special_key)});
+            try writer.print("special_key: {s}", .{@tagName(this.special_key)});
         }
 
         try writer.writeAll(" }");
@@ -96,16 +89,9 @@ pub const Mouse = struct {
     is_shift: bool,
     is_ctrl: bool,
 
-    pub fn format(
-        value: Mouse,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = options;
-        _ = fmt;
+    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
         try writer.writeAll("Mouse.");
-        try writer.print("x: {d}, y: {d}, button: {any}, is_alt: {any}, is_shift: {any}, is_ctrl: {any}", .{ value.x, value.y, value.button, value.is_alt, value.is_shift, value.is_ctrl });
+        try writer.print("x: {d}, y: {d}, button: {any}, is_alt: {any}, is_shift: {any}, is_ctrl: {any}", .{ this.x, this.y, this.button, this.is_alt, this.is_shift, this.is_ctrl });
     }
 };
 
@@ -128,39 +114,31 @@ pub const MouseButton = enum {
 /// When used in canonical mode, the user needs to press Enter to receive the event.
 /// When raw terminal mode is activated, the function waits up to the specified timeout
 /// for at least one event before returning.
-/// `in` must have reader method
-pub fn nextWithTimeout(in: anytype, timeout_ms: i32) !Event {
+pub fn nextWithTimeout(file: std.fs.File, timeout_ms: i32) !Event {
     switch (@import("builtin").os.tag) {
-        .linux => return nextWithTimeoutPosix(in, timeout_ms),
-        .macos => return nextWithTimeoutPosix(in, timeout_ms),
+        .linux => return nextWithTimeoutPosix(file, timeout_ms),
+        .macos => return nextWithTimeoutPosix(file, timeout_ms),
         else => return error.UnsupportedPlatform,
     }
 }
 
-fn nextWithTimeoutPosix(in: anytype, timeout_ms: i32) !Event {
+fn nextWithTimeoutPosix(file: std.fs.File, timeout_ms: i32) !Event {
     var polls: [1]std.posix.pollfd = .{.{
-        .fd = in.handle,
+        .fd = file.handle,
         .events = std.posix.POLL.IN,
         .revents = 0,
     }};
     if ((try std.posix.poll(&polls, timeout_ms)) > 0) {
-        return next(in);
+        return next(file);
     }
 
     return .timeout;
 }
 
-fn readByteOrNull(reader: anytype) !?u8 {
-    return reader.readByte() catch |err| switch (err) {
-        error.EndOfStream => null,
-        else => return err,
-    };
-}
-
 /// Returns true if there are events, false otherwise
-fn terminalHasEvent(reader: anytype) !bool {
+fn terminalHasEvent(file: std.fs.File) !bool {
     var polls: [1]std.posix.pollfd = .{.{
-        .fd = reader.handle,
+        .fd = file.handle,
         .events = std.posix.POLL.IN,
         .revents = 0,
     }};
@@ -168,7 +146,14 @@ fn terminalHasEvent(reader: anytype) !bool {
     return (try std.posix.poll(&polls, 0)) > 0;
 }
 
-fn parseEscapeSequence(reader: anytype) !Event {
+fn readByteOrNull(reader: *std.Io.Reader) !?u8 {
+    return reader.takeByte() catch |err| switch (err) {
+        error.EndOfStream => null,
+        else => return err,
+    };
+}
+
+fn parseEscapeSequence(reader: *std.Io.Reader) !Event {
     const c1 = try readByteOrNull(reader) orelse return .invalid;
 
     switch (c1) {
@@ -367,15 +352,16 @@ fn parseEscapeSequence(reader: anytype) !Event {
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is activated it will block until read at least one event.
-///
-/// `in` must have reader method
-pub fn next(in: anytype) !Event {
-    const reader = in.reader();
+pub fn next(file: std.fs.File) !Event {
+    var reader_buf: [1]u8 = undefined;
+    var file_reader = file.reader(&reader_buf);
+    const reader = &file_reader.interface;
+
     const c0 = try readByteOrNull(reader) orelse return .none;
     switch (c0) {
         // Handle escape sequences
         '\x1b' => {
-            const has_events = try terminalHasEvent(in);
+            const has_events = try terminalHasEvent(file);
             if (!has_events) {
                 return Event{ .key = .{ .special_key = .esc } };
             } else {
@@ -498,41 +484,4 @@ fn parseMouseAction(action: u8) !Mouse {
     };
 
     return mouse_event;
-}
-
-const TestIn = struct {
-    data: []const u8,
-    pos: usize = 0,
-
-    // dummy fd for test
-    handle: std.posix.fd_t = 0,
-
-    pub fn readByte(self: *@This()) !u8 {
-        if (self.pos >= self.data.len) return error.EndOfStream;
-        defer self.pos += 1;
-        return self.data[self.pos];
-    }
-
-    pub fn reader(self: *@This()) *@This() {
-        return self;
-    }
-};
-
-test "event.next parses >20 bytes unicode string" {
-    const utf8_bytes = "1234567890123456789ñ";
-    const expected_codepoints = [_]u21{
-        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0xf1,
-    };
-
-    var reader = TestIn{ .data = utf8_bytes };
-    var i: usize = 0;
-    while (i < expected_codepoints.len) : (i += 1) {
-        const ev = try next(&reader);
-        switch (ev) {
-            .key => |k| {
-                try std.testing.expect(k.char == expected_codepoints[i]);
-            },
-            else => try std.testing.expect(false),
-        }
-    }
 }

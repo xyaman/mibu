@@ -1,23 +1,28 @@
 const std = @import("std");
-const io = std.io;
+const builtin = @import("builtin");
+
+const Io = std.Io;
 
 const mibu = @import("mibu");
-
 const color = mibu.color;
 const cursor = mibu.cursor;
 
 pub fn main() !void {
-    const stdout = io.getStdOut();
+    var stdout_buffer: [1]u8 = undefined;
 
-    if (@import("builtin").os.tag == .windows) {
+    var stdout_file = std.fs.File.stdout();
+    var stdout_writer = stdout_file.writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
+
+    if (builtin.os.tag == .windows) {
         try mibu.enableWindowsVTS(stdout.handle);
     }
 
-    try stdout.writer().print("{s}Warning text\n", .{color.print.fg(.red)});
+    try stdout.print("{s}Warning text\n", .{color.print.fg(.red)});
 
-    try color.fg256(stdout.writer(), .blue);
-    try stdout.writer().print("Blue text\n", .{});
+    try color.fg256(stdout, .blue);
+    try stdout.print("Blue text\n", .{});
 
-    try color.fgRGB(stdout.writer(), 97, 37, 160);
-    try stdout.writer().print("Purple text\n", .{});
+    try color.fgRGB(stdout, 97, 37, 160);
+    try stdout.print("Purple text\n", .{});
 }

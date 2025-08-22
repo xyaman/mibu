@@ -5,7 +5,6 @@ const lib = @import("main.zig");
 const utils = lib.utils;
 
 pub const print = struct {
-
     /// Moves cursor to `x` column and `y` row
     pub inline fn goTo(x: anytype, y: anytype) []const u8 {
         // i guess is ok with this size for now
@@ -63,46 +62,46 @@ pub const print = struct {
 };
 
 /// Moves cursor to `x` column and `y` row
-pub fn goTo(writer: anytype, x: anytype, y: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "{d};{d}H", .{ y, x });
+pub fn goTo(writer: *std.Io.Writer, x: anytype, y: anytype) !void {
+    return writer.print(utils.csi ++ "{d};{d}H", .{ y, x });
 }
 
 /// Moves cursor up `y` rows
-pub fn goUp(writer: anytype, y: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "{d}A", .{y});
+pub fn goUp(writer: *std.Io.Writer, y: anytype) !void {
+    return writer.print(utils.csi ++ "{d}A", .{y});
 }
 
 /// Moves cursor down `y` rows
-pub fn goDown(writer: anytype, y: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "{d}B", .{y});
+pub fn goDown(writer: *std.Io.Writer, y: anytype) !void {
+    return writer.print(utils.csi ++ "{d}B", .{y});
 }
 
 /// Moves cursor left `x` columns
-pub fn goLeft(writer: anytype, x: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "{d}D", .{x});
+pub fn goLeft(writer: *std.Io.Writer, x: anytype) !void {
+    return writer.print(utils.csi ++ "{d}D", .{x});
 }
 
 /// Moves cursor right `x` columns
-pub fn goRight(writer: anytype, x: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "{d}C", .{x});
+pub fn goRight(writer: *std.Io.Writer, x: anytype) !void {
+    return writer.print(utils.csi ++ "{d}C", .{x});
 }
 
 /// Hide the cursor
-pub fn hide(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "?25l", .{});
+pub fn hide(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ "?25l", .{});
 }
 
 /// Show the cursor
-pub fn show(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "?25h", .{});
+pub fn show(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ "?25h", .{});
 }
 
 /// Save cursor position
-pub fn save(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "u", .{});
+pub fn save(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ "u", .{});
 }
 
 /// Restore cursor position
-pub fn restore(writer: anytype) !void {
-    return std.fmt.format(writer, utils.csi ++ "s", .{});
+pub fn restore(writer: *std.Io.Writer) !void {
+    return writer.print(utils.csi ++ "s", .{});
 }

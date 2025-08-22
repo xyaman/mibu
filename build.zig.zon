@@ -1,7 +1,7 @@
 .{
-    .name = "mibu",
-    .version = "0.0.1",
-    //.minimum_zig_version = "0.13.0",
+    .name = .mibu,
+    .version = "0.0.1-dev",
+    .minimum_zig_version = "0.15.1",
     .dependencies = .{},
     .paths = .{
         "build.zig",
@@ -9,4 +9,5 @@
         "src",
         "LICENSE",
     },
+    .fingerprint = 0xd8aa8cfbaef5da0d,
 }

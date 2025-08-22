@@ -1,21 +1,26 @@
 const std = @import("std");
-const io = std.io;
+const builtin = @import("builtin");
+
+const Io = std.Io;
 
 const mibu = @import("mibu");
 const events = mibu.events;
 const term = mibu.term;
-const utils = mibu.utils;
 
 pub fn main() !void {
-    const stdin = io.getStdIn();
-    const stdout = io.getStdOut();
+    var stdout_buffer: [1024]u8 = undefined;
+
+    const stdin = std.fs.File.stdin();
+    var stdout_file = std.fs.File.stdout();
+    var stdout_writer = stdout_file.writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
 
     if (!std.posix.isatty(stdin.handle)) {
-        try stdout.writer().print("The current file descriptor is not a referring to a terminal.\n", .{});
+        try stdout.print("The current file descriptor is not a referring to a terminal.\n", .{});
         return;
     }
 
-    if (@import("builtin").os.tag == .windows) {
+    if (builtin.os.tag == .windows) {
         try mibu.enableWindowsVTS(stdout.handle);
     }
 
@@ -24,10 +29,10 @@ pub fn main() !void {
     defer raw_term.disableRawMode() catch {};
 
     // To listen mouse events, we need to enable mouse tracking
-    try stdout.writer().print("{s}", .{utils.enable_mouse_tracking});
-    defer stdout.writer().print("{s}", .{utils.disable_mouse_tracking}) catch {};
+    try stdout.print("{s}", .{mibu.utils.enable_mouse_tracking});
+    defer stdout.print("{s}", .{mibu.utils.disable_mouse_tracking}) catch {};
 
-    try stdout.writer().print("Press q or Ctrl-C to exit...\n\r", .{});
+    try stdout.print("Press q or Ctrl-C to exit...\n\r", .{});
 
     while (true) {
         const next = try events.nextWithTimeout(stdin, 1000);
@@ -37,15 +42,17 @@ pub fn main() !void {
                     break;
                 }
 
-                try stdout.writer().print("Pressed: {s}\n\r", .{k});
+                try stdout.print("Pressed: {f}\n\r", .{k});
             },
-            .mouse => |m| try stdout.writer().print("Mouse: {s}\n\r", .{m}),
-            .timeout => try stdout.writer().print("Timeout.\n\r", .{}),
+            .mouse => |m| try stdout.print("Mouse: {f}\n\r", .{m}),
+            .timeout => try stdout.print("Timeout.\n\r", .{}),
 
             // ex. mouse events not supported yet
-            else => try stdout.writer().print("Event: {any}\n\r", .{next}),
+            else => try stdout.print("Event: {any}\n\r", .{next}),
         }
+
+        try stdout.flush();
     }
 
-    try stdout.writer().print("Bye bye\n\r", .{});
+    try stdout.print("Bye bye\n\r", .{});
 }
