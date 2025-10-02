@@ -37,12 +37,14 @@ pub fn main() !void {
     while (true) {
         const next = try events.nextWithTimeout(stdin, 1000);
         switch (next) {
-            .key => |k| {
-                if (k.mods.ctrl and k.char == 'c') {
-                    break;
-                }
-
-                try stdout.print("Pressed: {f}\n\r", .{k});
+            .key => |k| switch (k.code) {
+                .char => |char| {
+                    if (k.mods.ctrl and char == 'c') {
+                        break;
+                    }
+                    try stdout.print("Pressed: {f}\n\r", .{k});
+                },
+                else => {},
             },
             .mouse => |m| try stdout.print("Mouse: {f}\n\r", .{m}),
             .timeout => try stdout.print("Timeout.\n\r", .{}),
