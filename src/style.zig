@@ -43,82 +43,42 @@ pub fn reset(writer: *std.Io.Writer) !void {
     return writer.print(print.reset, .{});
 }
 
-/// Returns the ANSI sequence to set bold mode
-pub fn bold(writer: *std.Io.Writer) !void {
-    return writer.print(print.bold, .{});
+/// Outputs the ANSI sequence to set/unset bold mode
+pub fn bold(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.bold, .{}) else writer.print(print.no_bold, .{});
 }
 
-/// Returns the ANSI sequence to unset bold mode
-pub fn noBold(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_bold, .{});
+/// Outputs the ANSI sequence to set/unset dim mode
+pub fn dim(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.dim, .{}) else writer.print(print.no_dim, .{});
 }
 
-/// Returns the ANSI sequence to set dim mode
-pub fn dim(writer: *std.Io.Writer) !void {
-    return writer.print(print.dim, .{});
+/// Outputs the ANSI sequence to set/unset italic mode
+pub fn italic(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.italic, .{}) else writer.print(print.no_italic, .{});
 }
 
-/// Returns the ANSI sequence to unset dim mode
-pub fn noDim(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_dim, .{});
+/// Outputs the ANSI sequence to set/unset underline mode
+pub fn underline(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.underline, .{}) else writer.print(print.no_underline, .{});
 }
 
-/// Returns the ANSI sequence to set italic mode
-pub fn italic(writer: *std.Io.Writer) !void {
-    return writer.print(print.italic, .{});
+/// Outputs the ANSI sequence to set/unset blinking mode
+pub fn blinking(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.blinking, .{}) else writer.print(print.no_blinking, .{});
 }
 
-/// Returns the ANSI sequence to unset italic mode
-pub fn noItalic(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_italic, .{});
+/// Outputs the ANSI sequence to set/unset reverse mode
+pub fn reverse(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.reverse, .{}) else writer.print(print.no_reverse, .{});
 }
 
-/// Returns the ANSI sequence to set underline mode
-pub fn underline(writer: *std.Io.Writer) !void {
-    return writer.print(print.underline, .{});
+/// Outputs the ANSI sequence to set/unset hidden/invisible mode
+pub fn hidden(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.invisible, .{}) else writer.print(print.no_invisible, .{});
 }
 
-/// Returns the ANSI sequence to unset underline mode
-pub fn noUnderline(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_underline, .{});
-}
-
-/// Returns the ANSI sequence to set blinking mode
-pub fn blinking(writer: *std.Io.Writer) !void {
-    return writer.print(print.blinking, .{});
-}
-
-/// Returns the ANSI sequence to unset blinking mode
-pub fn noBlinking(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_blinking, .{});
-}
-
-/// Returns the ANSI sequence to set reverse mode
-pub fn reverse(writer: *std.Io.Writer) !void {
-    return writer.print(print.reverse, .{});
-}
-
-/// Returns the ANSI sequence to unset reverse mode
-pub fn noReverse(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_reverse, .{});
-}
-
-/// Returns the ANSI sequence to set hidden/invisible mode
-pub fn hidden(writer: *std.Io.Writer) !void {
-    return writer.print(print.invisible, .{});
-}
-
-/// Returns the ANSI sequence to unset hidden/invisible mode
-pub fn noHidden(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_invisible, .{});
-}
-
-/// Returns the ansi sequence to set strikethrough mode
-pub fn strikethrough(writer: *std.Io.Writer) !void {
-    return writer.print(print.strikethrough, .{});
-}
-
-/// Returns the ansi sequence to unset strikethrough mode
-pub fn noStrikethrough(writer: *std.Io.Writer) !void {
-    return writer.print(print.no_strikethrough, .{});
+/// Outputs the ANSI sequence to set/unset strikethrough mode
+pub fn strikethrough(writer: *std.io.Writer, v: bool) !void {
+    return if (v) writer.print(print.strikethrough, .{}) else writer.print(print.no_strikethrough, .{});
 }

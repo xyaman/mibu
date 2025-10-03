@@ -31,6 +31,7 @@ pub fn main() !void {
     defer cursor.show(stdout) catch {};
 
     try cursor.goTo(stdout, 1, 1);
+    try mibu.style.italic(stdout, true);
     try stdout.print("This is being shown in the alternate screen...", .{});
     try stdout.flush();
 
