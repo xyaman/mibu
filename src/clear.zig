@@ -43,16 +43,16 @@ pub fn all(writer: *std.Io.Writer) !void {
 }
 
 /// Clear from cursor to end of line
-pub fn line_from_cursor(writer: *std.Io.Writer) !void {
+pub fn lineFromCursor(writer: *std.Io.Writer) !void {
     return writer.print(utils.csi ++ utils.clear_line_from_cursor, .{});
 }
 
 /// Clear start of line to the cursor
-pub fn line_to_cursor(writer: *std.Io.Writer) !void {
+pub fn lineToCursor(writer: *std.Io.Writer) !void {
     return writer.print(utils.csi ++ utils.clear_line_to_cursor, .{});
 }
 
 /// Clear entire line
-pub fn entire_line(writer: *std.Io.Writer) !void {
+pub fn entireLine(writer: *std.Io.Writer) !void {
     return writer.print(utils.csi ++ utils.clear_line, .{});
 }
