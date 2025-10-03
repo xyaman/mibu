@@ -62,13 +62,6 @@ pub const Key = struct {
 
         try writer.writeAll(" }");
     }
-
-    pub fn isChar(this: @This(), c: u21) bool {
-        return switch (this.code) {
-            KeyCode.char => this.code.char == c,
-            else => false,
-        };
-    }
 };
 
 pub const Event = union(enum) {
@@ -78,6 +71,18 @@ pub const Event = union(enum) {
     invalid,
     timeout,
     none,
+
+    pub fn matchesChar(self: @This(), char: u21, mods: Modifiers) bool {
+        switch (self) {
+            .key => |k| switch (k.code) {
+                .char => |c| {
+                    return c == char and std.meta.eql(k.mods, mods);
+                },
+                else => return false,
+            },
+            else => return false,
+        }
+    }
 };
 
 // https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
