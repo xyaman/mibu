@@ -105,3 +105,32 @@ pub fn save(writer: *std.Io.Writer) !void {
 pub fn restore(writer: *std.Io.Writer) !void {
     return writer.print(utils.csi ++ "s", .{});
 }
+
+pub const Position = struct {
+    row: usize,
+    col: usize,
+};
+
+/// Returns the cursor's coordinates. The terminal needs to be
+/// in raw mode or at least have echo disabled.
+pub fn getPosition(in: *std.Io.Reader, out: *std.io.Writer) !Position {
+    try out.print("\x1b[6n", .{});
+    try out.flush();
+
+    var buf: [6]u8 = undefined;
+    const bytes = try in.readSliceShort(&buf);
+    const data = buf[0..bytes];
+
+    // example response: \x1B[12;45R
+    if (data[0] != 0x1B or data[1] != '[') {
+        return error.InvalidResponse;
+    }
+
+    var it = std.mem.tokenizeAny(u8, data[2..], ";R");
+    const row_str = it.next() orelse return error.InvalidResponse;
+    const col_str = it.next() orelse return error.InvalidResponse;
+
+    const row = try std.fmt.parseUnsigned(usize, row_str, 10);
+    const col = try std.fmt.parseUnsigned(usize, col_str, 10);
+    return .{ .row = row, .col = col };
+}
