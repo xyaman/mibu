@@ -320,8 +320,8 @@ fn parseEscapeSequence(reader: *std.Io.Reader) !Event {
                     };
 
                     // x and y are 1-based
-                    mouse_event.x = x.? - 1;
-                    mouse_event.y = y.? - 1;
+                    mouse_event.x = x.? - 32; // 0x20
+                    mouse_event.y = y.? - 32; // 0x20
 
                     return Event{ .mouse = mouse_event };
                 },
