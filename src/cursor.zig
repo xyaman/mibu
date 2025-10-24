@@ -23,7 +23,7 @@ pub const print = struct {
     pub inline fn goDown(y: anytype) []const u8 {
         // i guess is ok with this size for now
         var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d}A", .{y}) catch unreachable;
+        return fmt.bufPrint(&buf, "\x1b[{d}B", .{y}) catch unreachable;
     }
 
     /// Moves cursor left `x` columns
