@@ -63,3 +63,4 @@ zig build alternate_screen
 ## Projects that use `mibu`
 - [zigtris](https://github.com/ringtailsoftware/zigtris)
 - [chip8 emulator (wip)](https://github.com/xyaman/chip8)
+- [2048 in zig](https://codeberg.org/Vulwsztyn/2048_zig)
