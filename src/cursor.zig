@@ -52,12 +52,12 @@ pub const print = struct {
 
     /// Save cursor position
     pub inline fn save() []const u8 {
-        return utils.comptimeCsi("u", .{});
+        return utils.comptimeCsi("s", .{});
     }
 
     /// Restore cursor position
     pub inline fn restore() []const u8 {
-        return utils.comptimeCsi("s", .{});
+        return utils.comptimeCsi("u", .{});
     }
 };
 
@@ -98,12 +98,12 @@ pub fn show(writer: *std.Io.Writer) !void {
 
 /// Save cursor position
 pub fn save(writer: *std.Io.Writer) !void {
-    return writer.print(utils.csi ++ "u", .{});
+    return writer.print(utils.csi ++ "s", .{});
 }
 
 /// Restore cursor position
 pub fn restore(writer: *std.Io.Writer) !void {
-    return writer.print(utils.csi ++ "s", .{});
+    return writer.print(utils.csi ++ "u", .{});
 }
 
 pub const Position = struct {
