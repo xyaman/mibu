@@ -2,6 +2,7 @@ const std = @import("std");
 const io = std.io;
 const unicode = std.unicode;
 const windows = std.os.windows;
+const win = @import("winapiGlue.zig");
 
 pub const Modifiers = packed struct {
     shift: bool = false,
@@ -122,6 +123,7 @@ pub fn nextWithTimeout(file: std.fs.File, timeout_ms: i32) !Event {
     switch (@import("builtin").os.tag) {
         .linux => return nextWithTimeoutPosix(file, timeout_ms),
         .macos => return nextWithTimeoutPosix(file, timeout_ms),
+        .windows => return nextWithTimeoutWindows(file, timeout_ms),
         else => return error.UnsupportedPlatform,
     }
 }
@@ -488,4 +490,83 @@ fn parseMouseAction(action: u8) !Mouse {
     };
 
     return mouse_event;
+}
+
+fn nextWithTimeoutWindows(file: std.fs.File, timeout_ms: i32) !Event {
+    return switch (windows.kernel32.WaitForSingleObject(file.handle, @abs(timeout_ms))) {
+        windows.WAIT_OBJECT_0 => nextWindows(file),
+        windows.WAIT_TIMEOUT => .timeout,
+        windows.WAIT_FAILED => windows.unexpectedError(windows.GetLastError()),
+        else => unreachable,
+    };
+}
+
+fn nextWindows(file: std.fs.File) !Event {
+    var input_records: [1]win.INPUT_RECORD = undefined;
+    var num_events_read: u32 = 0;
+    const result = win.ReadConsoleInputW(
+        file.handle,
+        @ptrCast(&input_records),
+        @intCast(input_records.len),
+        &num_events_read,
+    );
+
+    if (result != std.os.windows.TRUE) {
+        return windows.unexpectedError(windows.GetLastError());
+    }
+
+    if (num_events_read == 0) {
+        return .invalid;
+    }
+
+    const record = input_records[0];
+    switch (record.EventType) {
+        win.KEY_EVENT => {
+            const e = record.Event.KeyEvent;
+
+            if (e.bKeyDown == 0) return .invalid;
+
+            const ch = win.vkToUnicode(e.wVirtualKeyCode, e.wVirtualScanCode, e.dwControlKeyState);
+            if (ch == 0) return .invalid;
+            return Event{
+                .key = .{
+                    .code = .{ .char = ch },
+                    .mods = .{
+                        .alt = e.dwControlKeyState == win.LEFT_ALT_PRESSED or e.dwControlKeyState == win.RIGHT_ALT_PRESSED,
+                        .ctrl = e.dwControlKeyState == win.LEFT_CTRL_PRESSED or e.dwControlKeyState == win.RIGHT_CTRL_PRESSED,
+                        .shift = e.dwControlKeyState == win.SHIFT_PRESSED,
+                    },
+                },
+            };
+        },
+        win.MOUSE_EVENT => {
+            const e = record.Event.MouseEvent;
+            return Event{
+                .mouse = .{
+                    .button = switch (e.dwButtonState) {
+                        win.FROM_LEFT_1ST_BUTTON_PRESSED => .left,
+                        win.FROM_LEFT_2ND_BUTTON_PRESSED => .middle,
+                        win.RIGHTMOST_BUTTON_PRESSED => .right,
+                        0 => if (e.dwEventFlags == win.MOUSE_MOVED) .move else .release,
+                        else => blk: {
+                            if (e.dwEventFlags == win.MOUSE_WHEELED) {
+                                const hiword: i16 = @bitCast(@as(u16, @intCast(e.dwButtonState >> 16)));
+                                break :blk if (hiword > 0) .scroll_up else .scroll_down;
+                            }
+                            break :blk .left;
+                        },
+                    },
+                    .x = @intCast(e.dwMousePosition.X),
+                    .y = @intCast(e.dwMousePosition.Y),
+                    .is_alt = e.dwControlKeyState == win.LEFT_ALT_PRESSED or e.dwControlKeyState == win.RIGHT_ALT_PRESSED,
+                    .is_ctrl = e.dwControlKeyState == win.LEFT_CTRL_PRESSED or e.dwControlKeyState == win.RIGHT_CTRL_PRESSED,
+                    .is_shift = e.dwControlKeyState == win.SHIFT_PRESSED,
+                },
+            };
+        },
+        win.WINDOW_BUFFER_SIZE_EVENT => return .resize,
+        else => {},
+    }
+
+    return .invalid;
 }

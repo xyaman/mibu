@@ -21,7 +21,7 @@ pub fn main() !void {
     defer stdout.flush() catch {};
 
     if (builtin.os.tag == .windows) {
-        try mibu.enableWindowsVTS(stdout.handle);
+        try mibu.enableWindowsVTS(stdout_file.handle);
     }
 
     try term.enterAlternateScreen(stdout);

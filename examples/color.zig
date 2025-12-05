@@ -15,7 +15,7 @@ pub fn main() !void {
     const stdout = &stdout_writer.interface;
 
     if (builtin.os.tag == .windows) {
-        try mibu.enableWindowsVTS(stdout.handle);
+        try mibu.enableWindowsVTS(stdout_file.handle);
     }
 
     try stdout.print("{s}Warning text\n", .{color.print.fg(.red)});
@@ -25,4 +25,6 @@ pub fn main() !void {
 
     try color.fgRGB(stdout, 97, 37, 160);
     try stdout.print("Purple text\n", .{});
+
+    try color.resetAll(stdout);
 }

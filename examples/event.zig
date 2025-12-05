@@ -14,6 +14,7 @@ pub fn main() !void {
     var stdout_file = std.fs.File.stdout();
     var stdout_writer = stdout_file.writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
+    defer stdout.flush() catch {};
 
     if (!std.posix.isatty(stdin.handle)) {
         try stdout.print("The current file descriptor is not a referring to a terminal.\n", .{});
@@ -21,7 +22,7 @@ pub fn main() !void {
     }
 
     if (builtin.os.tag == .windows) {
-        try mibu.enableWindowsVTS(stdout.handle);
+        try mibu.enableWindowsVTS(stdout_file.handle);
     }
 
     // Enable terminal raw mode, its very recommended when listening for events
@@ -48,7 +49,7 @@ pub fn main() !void {
             },
             .mouse => |m| try stdout.print("Mouse: {f}\n\r", .{m}),
             .timeout => try stdout.print("Timeout.\n\r", .{}),
-
+            .resize => try stdout.print("Resize.\n", .{}),
             // ex. mouse events not supported yet
             else => try stdout.print("Event: {any}\n\r", .{next}),
         }
