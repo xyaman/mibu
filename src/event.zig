@@ -168,6 +168,7 @@ fn parseEscapeSequence(reader: *std.Io.Reader) !Event {
                 'B' => return Event{ .key = .{ .code = KeyCode.down } },
                 'C' => return Event{ .key = .{ .code = KeyCode.right } },
                 'D' => return Event{ .key = .{ .code = KeyCode.left } },
+                'Z' => return Event{ .key = .{ .code = KeyCode.tab, .mods = .{ .shift = true } } },
                 '0'...'9' => {
                     // handle complex/large escape sequences
                     var buffer: [33]u8 = [_]u8{0} ** 33;
