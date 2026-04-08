@@ -3,6 +3,11 @@ const builtin = @import("builtin");
 const windows = std.os.windows;
 const kernel32 = windows.kernel32;
 
+pub const WAIT_OBJECT_0 = windows.WAIT_OBJECT_0;
+pub const WAIT_TIMEOUT_VAL = windows.WAIT_TIMEOUT;
+pub const INFINITE = windows.INFINITE;
+pub const WaitForSingleObject = kernel32.WaitForSingleObject;
+
 pub const ENABLE_PROCESSED_OUTPUT: windows.DWORD = 0x0001;
 pub const ENABLE_VIRTUAL_TERMINAL_PROCESSING: windows.DWORD = 0x0004;
 pub const ENABLE_WINDOW_INPUT: windows.DWORD = 0x0008;

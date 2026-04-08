@@ -20,8 +20,13 @@ pub fn main() !void {
     // and cursor.show are flushed when the program exits.
     defer stdout.flush() catch {};
 
+    if (!std.posix.isatty(stdout_file.handle)) {
+        try stdout.print("The current file descriptor is not referring to a terminal.\n", .{});
+        return;
+    }
+
     if (builtin.os.tag == .windows) {
-        try mibu.enableWindowsVTS(stdout.handle);
+        try mibu.enableWindowsVTS(stdout_file.handle);
     }
 
     try term.enterAlternateScreen(stdout);

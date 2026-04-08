@@ -2,6 +2,7 @@ const std = @import("std");
 const io = std.io;
 const unicode = std.unicode;
 const windows = std.os.windows;
+const winapiGlue = @import("winapiGlue.zig");
 
 pub const Modifiers = packed struct {
     shift: bool = false,
@@ -120,10 +121,20 @@ pub const MouseButton = enum {
 /// for at least one event before returning.
 pub fn nextWithTimeout(file: std.fs.File, timeout_ms: i32) !Event {
     switch (@import("builtin").os.tag) {
-        .linux => return nextWithTimeoutPosix(file, timeout_ms),
-        .macos => return nextWithTimeoutPosix(file, timeout_ms),
+        .linux, .macos => return nextWithTimeoutPosix(file, timeout_ms),
+        .windows => return nextWithTimeoutWindows(file, timeout_ms),
         else => return error.UnsupportedPlatform,
     }
+}
+
+fn nextWithTimeoutWindows(file: std.fs.File, timeout_ms: i32) !Event {
+    const timeout: windows.DWORD = if (timeout_ms < 0) winapiGlue.INFINITE else @intCast(timeout_ms);
+    const result = winapiGlue.WaitForSingleObject(file.handle, timeout);
+    return switch (result) {
+        winapiGlue.WAIT_OBJECT_0 => next(file),
+        winapiGlue.WAIT_TIMEOUT_VAL => .timeout,
+        else => error.WaitError,
+    };
 }
 
 fn nextWithTimeoutPosix(file: std.fs.File, timeout_ms: i32) !Event {
@@ -141,13 +152,21 @@ fn nextWithTimeoutPosix(file: std.fs.File, timeout_ms: i32) !Event {
 
 /// Returns true if there are events, false otherwise
 fn terminalHasEvent(file: std.fs.File) !bool {
-    var polls: [1]std.posix.pollfd = .{.{
-        .fd = file.handle,
-        .events = std.posix.POLL.IN,
-        .revents = 0,
-    }};
-
-    return (try std.posix.poll(&polls, 0)) > 0;
+    switch (@import("builtin").os.tag) {
+        .linux, .macos => {
+            var polls: [1]std.posix.pollfd = .{.{
+                .fd = file.handle,
+                .events = std.posix.POLL.IN,
+                .revents = 0,
+            }};
+            return (try std.posix.poll(&polls, 0)) > 0;
+        },
+        .windows => {
+            const result = winapiGlue.WaitForSingleObject(file.handle, 0);
+            return result == winapiGlue.WAIT_OBJECT_0;
+        },
+        else => return error.UnsupportedPlatform,
+    }
 }
 
 fn readByteOrNull(reader: *std.Io.Reader) !?u8 {

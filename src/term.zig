@@ -57,7 +57,7 @@ fn enableRawModePosix(handle: posix.fd_t) !RawTerm {
 fn enableRawModeWindows(handle: windows.HANDLE) !RawTerm {
     const old_mode = try winapiGlue.getConsoleMode(handle);
 
-    const mode: windows.DWORD = winapiGlue.ENABLE_MOUSE_INPUT | winapiGlue.ENABLE_WINDOW_INPUT;
+    const mode: windows.DWORD = winapiGlue.ENABLE_MOUSE_INPUT | winapiGlue.ENABLE_WINDOW_INPUT | winapiGlue.ENABLE_VIRTUAL_TERMINAL_INPUT;
     try winapiGlue.setConsoleMode(handle, mode);
 
     return RawTerm{
