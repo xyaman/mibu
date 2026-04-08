@@ -15,7 +15,7 @@ pub fn main() !void {
     const stdout = &stdout_writer.interface;
 
     if (builtin.os.tag == .windows) {
-        try mibu.enableWindowsVTS(stdout.handle);
+        mibu.enableWindowsVTS(stdout_file.handle) catch {};
     }
 
     try stdout.print("{s}Warning text\n", .{color.print.fg(.red)});
