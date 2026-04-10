@@ -8,6 +8,7 @@ pub const utils = @import("utils.zig");
 pub const term = @import("term.zig");
 pub const events = @import("event.zig");
 pub const scroll = @import("scroll.zig");
+pub const termbg = @import("termbg.zig");
 
 pub const enableWindowsVTS = switch (@import("builtin").os.tag) {
     .windows => @import("utils.zig").enableWindowsVTS,
@@ -23,4 +24,5 @@ test {
     _ = term;
     _ = events;
     _ = scroll;
+    _ = termbg;
 }

@@ -3,6 +3,17 @@ const fmt = std.fmt;
 
 const utils = @import("main.zig").utils;
 
+/// 8-bit per-channel RGB color for use in ANSI truecolor sequences.
+pub const Rgb = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+
+    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+        try writer.print("Rgb{{ r: {d}, g: {d}, b: {d} }}", .{ this.r, this.g, this.b });
+    }
+};
+
 /// 256 colors
 /// https://www.ditig.com/256-colors-cheat-sheet
 pub const Color = enum(u8) {
@@ -309,13 +320,13 @@ pub fn bg256(writer: *std.Io.Writer, color: Color) !void {
 }
 
 /// Writes the escape sequence code to change foreground to rgb color
-pub fn fgRGB(writer: *std.Io.Writer, r: u8, g: u8, b: u8) !void {
-    return writer.print(utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
+pub fn fgRGB(writer: *std.Io.Writer, rgb: Rgb) !void {
+    return writer.print(utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 }
 
 /// Writes the escape sequence code to change background to rgb color
-pub fn bgRGB(writer: *std.Io.Writer, r: u8, g: u8, b: u8) !void {
-    return writer.print(utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ r, g, b });
+pub fn bgRGB(writer: *std.Io.Writer, rgb: Rgb) !void {
+    return writer.print(utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 }
 
 /// Writes the escape code to reset style and color
