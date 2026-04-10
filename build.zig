@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) void {
         "color",
         "event",
         "alternate_screen",
+        "termbg",
     };
 
     for (examples) |example_name| {

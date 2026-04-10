@@ -23,6 +23,6 @@ pub fn main() !void {
     try color.fg256(stdout, .blue);
     try stdout.print("Blue text\n", .{});
 
-    try color.fgRGB(stdout, 97, 37, 160);
+    try color.fgRGB(stdout, .{ .r = 97, .g = 37, .b = 160 });
     try stdout.print("Purple text\n", .{});
 }
