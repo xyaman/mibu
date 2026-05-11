@@ -41,7 +41,7 @@ const mibu = @import("mibu");
 const color = mibu.color;
 
 pub fn main() void {
-    std.debug.print("{s}Hello World in purple!\n", .{color.print.bgRGB(97, 37, 160)});
+    std.debug.print("{s}Hello World in purple!{s}\n", .{ color.fgRGB(.{ .r = 97, .g = 37, .b = 160 }), color.reset });
 }
 ```
 
@@ -58,7 +58,11 @@ zig build color
 # Prints what key you pressed, until you press `q` or `ctrl+c`
 zig build event
 
+# Switch to alternate screen
 zig build alternate_screen
+
+# Detect terminal background color
+zig build termbg
 ```
 
 ## TODO
