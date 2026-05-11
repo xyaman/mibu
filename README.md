@@ -67,6 +67,8 @@ zig build alternate_screen
 
 ## Projects that use `mibu`
 
-- [zigtris](https://github.com/ringtailsoftware/zigtris)
-- [chip8 emulator (wip)](https://github.com/xyaman/chip8)
-- [2048 in zig](https://codeberg.org/Vulwsztyn/2048_zig)
+- [gurgeous/tennis](https://github.com/gurgeous/tennis) — A small CLI for printing stylized CSV tables
+- [tornikegomareli/lumen](https://github.com/tornikegomareli/lumen) — Real-time hardware monitoring TUI for macOS
+- [lance0/ahab](https://github.com/lance0/ahab) — A Docker cleanup TUI
+- [zigtris](https://github.com/ringtailsoftware/zigtris) — A minimal terminal Tetris written in Zig
+- [2048 in zig](https://codeberg.org/Vulwsztyn/2048_zig) — 2048 implementation in Zig
