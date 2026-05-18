@@ -21,8 +21,8 @@ pub fn getConsoleMode(handle: windows.HANDLE) !windows.DWORD {
     var mode: windows.DWORD = 0;
 
     // nonzero value means success
-    if (kernel32.GetConsoleMode(handle, &mode) == 0) {
-        const err = kernel32.GetLastError();
+    if (GetConsoleMode(handle, &mode) == 0) {
+        const err = windows.GetLastError();
         return windows.unexpectedError(err);
     }
 
@@ -31,17 +31,47 @@ pub fn getConsoleMode(handle: windows.HANDLE) !windows.DWORD {
 
 pub fn setConsoleMode(handle: windows.HANDLE, mode: windows.DWORD) !void {
     // nonzero value means success
-    if (kernel32.SetConsoleMode(handle, mode) == 0) {
-        const err = kernel32.GetLastError();
+    if (SetConsoleMode(handle, mode) == 0) {
+        const err = windows.GetLastError();
         return windows.unexpectedError(err);
     }
 }
 
 pub fn getConsoleScreenBufferInfo(handle: windows.HANDLE) !windows.CONSOLE_SCREEN_BUFFER_INFO {
-    var csbi: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
-    if (kernel32.GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
-        const err = kernel32.GetLastError();
+    var csbi: CONSOLE_SCREEN_BUFFER_INFO = undefined;
+    if (GetConsoleScreenBufferInfo(handle, &csbi) == 0) {
+        const err = windows.GetLastError();
         return windows.unexpectedError(err);
     }
     return csbi;
 }
+
+const SMALL_RECT = extern struct {
+    Left: i16,
+    Top: i16,
+    Right: i16,
+    Bottom: i16,
+};
+
+const CONSOLE_SCREEN_BUFFER_INFO = extern struct {
+    dwSize: windows.COORD,
+    dwCursorPosition: windows.COORD,
+    wAttributes: windows.WORD,
+    srWindow: SMALL_RECT,
+    dwMaximumWindowSize: windows.COORD,
+};
+
+extern "kernel32" fn GetConsoleMode(
+    hConsoleHandle: windows.HANDLE,
+    lpMode: *windows.DWORD,
+) callconv(.winapi) c_int;
+
+extern "kernel32" fn SetConsoleMode(
+    hConsoleHandle: windows.HANDLE,
+    lpMode: windows.DWORD,
+) callconv(.winapi) c_int;
+
+extern "kernel32" fn GetConsoleScreenBufferInfo(
+    hConsoleOutput: windows.HANDLE,
+    lpConsoleScreenBufferInfo: *CONSOLE_SCREEN_BUFFER_INFO,
+) callconv(.winapi) c_int;

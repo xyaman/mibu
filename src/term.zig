@@ -1,15 +1,16 @@
 const std = @import("std");
 const os = std.os;
-const io = std.io;
 const posix = std.posix;
 const windows = std.os.windows;
+
+const Io = std.Io;
 
 const utils = @import("utils.zig");
 const winapiGlue = @import("winapiGlue.zig");
 
 const builtin = @import("builtin");
 
-pub fn enableRawMode(handle: std.fs.File.Handle) !RawTerm {
+pub fn enableRawMode(handle: Io.File.Handle) !RawTerm {
     switch (builtin.os.tag) {
         .linux => return enableRawModePosix(handle),
         .macos => return enableRawModePosix(handle),
@@ -75,7 +76,7 @@ pub const RawTerm = struct {
     },
 
     /// The OS-specific file descriptor or file handle.
-    handle: std.fs.File.Handle,
+    handle: Io.File.Handle,
 
     const Self = @This();
 

@@ -7,11 +7,11 @@ const mibu = @import("mibu");
 const color = mibu.color;
 const cursor = mibu.cursor;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var stdout_buffer: [1]u8 = undefined;
 
-    var stdout_file = std.fs.File.stdout();
-    var stdout_writer = stdout_file.writer(&stdout_buffer);
+    var stdout_file = Io.File.stdout();
+    var stdout_writer = stdout_file.writer(init.io, &stdout_buffer);
     const stdout = &stdout_writer.interface;
 
     if (builtin.os.tag == .windows) {

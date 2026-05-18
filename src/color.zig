@@ -9,7 +9,7 @@ pub const Rgb = struct {
     g: u8,
     b: u8,
 
-    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(this: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
         try writer.print("Rgb{{ r: {d}, g: {d}, b: {d} }}", .{ this.r, this.g, this.b });
     }
 };

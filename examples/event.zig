@@ -7,15 +7,17 @@ const mibu = @import("mibu");
 const events = mibu.events;
 const term = mibu.term;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+
     var stdout_buffer: [1024]u8 = undefined;
 
-    const stdin = std.fs.File.stdin();
-    var stdout_file = std.fs.File.stdout();
-    var stdout_writer = stdout_file.writer(&stdout_buffer);
+    const stdin = Io.File.stdin();
+    var stdout_file = Io.File.stdout();
+    var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-    if (!std.posix.isatty(stdin.handle)) {
+    if (!try stdin.isTty(io)) {
         try stdout.print("The current file descriptor is not a referring to a terminal.\n", .{});
         return;
     }
@@ -39,7 +41,7 @@ pub fn main() !void {
     try stdout.flush();
 
     while (true) {
-        const next = try events.nextWithTimeout(stdin, 1000);
+        const next = try events.nextWithTimeout(io, stdin, 1000);
         switch (next) {
             .key => |k| switch (k.code) {
                 .char => |char| {

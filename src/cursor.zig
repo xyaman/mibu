@@ -113,7 +113,7 @@ pub const Position = struct {
 
 /// Returns the cursor's coordinates. The terminal needs to be
 /// in raw mode or at least have echo disabled.
-pub fn getPosition(in: *std.Io.Reader, out: *std.io.Writer) !Position {
+pub fn getPosition(in: *std.Io.Reader, out: *std.Io.Writer) !Position {
     try out.print("\x1b[6n", .{});
     try out.flush();
 
