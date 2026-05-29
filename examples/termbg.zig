@@ -17,7 +17,16 @@ pub fn main(init: std.process.Init) !void {
     var raw_term = try mibu.term.enableRawMode(stdin.handle);
     defer raw_term.disableRawMode() catch {};
 
-    const rgb = try mibu.termbg.detect(init.io, stdin, out);
+    const rgb = mibu.termbg.detect(init.io, stdin, out) catch |err| switch (err) {
+        error.NotSupported => {
+            try out.print("This terminal is not compatible.\r\n", .{});
+            const term = init.environ_map.get("TERM") orelse "unknown";
+            try out.print("TERM={s}\r\n", .{term});
+            try out.flush();
+            return;
+        },
+        else => return err,
+    };
 
     const t = mibu.termbg.theme(rgb);
     const rgb8 = rgb.to8();
