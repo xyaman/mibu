@@ -1,8 +1,10 @@
 const std = @import("std");
-const io = std.io;
+const Io = std.Io;
+const posix = std.posix;
 const unicode = std.unicode;
 const windows = std.os.windows;
 const winapiGlue = @import("winapiGlue.zig");
+const builtin = @import("builtin");
 
 pub const Modifiers = packed struct {
     shift: bool = false,
@@ -44,7 +46,7 @@ pub const Key = struct {
     mods: Modifiers = .{},
     code: KeyCode,
 
-    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(this: @This(), writer: *Io.Writer) Io.Writer.Error!void {
         try writer.writeAll("Key{ ");
         var first = true;
 
@@ -95,7 +97,7 @@ pub const Mouse = struct {
     is_shift: bool,
     is_ctrl: bool,
 
-    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(this: @This(), writer: *Io.Writer) Io.Writer.Error!void {
         try writer.writeAll("Mouse.");
         try writer.print("x: {d}, y: {d}, button: {any}, is_alt: {any}, is_shift: {any}, is_ctrl: {any}", .{ this.x, this.y, this.button, this.is_alt, this.is_shift, this.is_ctrl });
     }
@@ -119,47 +121,47 @@ pub const MouseButton = enum {
 /// When used in canonical mode, the user needs to press Enter to receive the event.
 /// When raw terminal mode is activated, the function waits up to the specified timeout
 /// for at least one event before returning.
-pub fn nextWithTimeout(file: std.fs.File, timeout_ms: i32) !Event {
-    switch (@import("builtin").os.tag) {
-        .linux, .macos => return nextWithTimeoutPosix(file, timeout_ms),
-        .windows => return nextWithTimeoutWindows(file, timeout_ms),
+pub fn nextWithTimeout(io: Io, file: Io.File, timeout_ms: i32) !Event {
+    switch (builtin.os.tag) {
+        .linux, .macos => return nextWithTimeoutPosix(io, file, timeout_ms),
+        .windows => return nextWithTimeoutWindows(io, file, timeout_ms),
         else => return error.UnsupportedPlatform,
     }
 }
 
-fn nextWithTimeoutWindows(file: std.fs.File, timeout_ms: i32) !Event {
+fn nextWithTimeoutWindows(io: Io, file: Io.File, timeout_ms: i32) !Event {
     const timeout: windows.DWORD = if (timeout_ms < 0) winapiGlue.INFINITE else @intCast(timeout_ms);
     const result = winapiGlue.WaitForSingleObject(file.handle, timeout);
     return switch (result) {
-        winapiGlue.WAIT_OBJECT_0 => next(file),
+        winapiGlue.WAIT_OBJECT_0 => next(io, file),
         winapiGlue.WAIT_TIMEOUT_VAL => .timeout,
         else => error.WaitError,
     };
 }
 
-fn nextWithTimeoutPosix(file: std.fs.File, timeout_ms: i32) !Event {
-    var polls: [1]std.posix.pollfd = .{.{
+fn nextWithTimeoutPosix(io: Io, file: Io.File, timeout_ms: i32) !Event {
+    var polls: [1]posix.pollfd = .{.{
         .fd = file.handle,
-        .events = std.posix.POLL.IN,
+        .events = posix.POLL.IN,
         .revents = 0,
     }};
-    if ((try std.posix.poll(&polls, timeout_ms)) > 0) {
-        return next(file);
+    if ((try posix.poll(&polls, timeout_ms)) > 0) {
+        return next(io, file);
     }
 
     return .timeout;
 }
 
 /// Returns true if there are events, false otherwise
-fn terminalHasEvent(file: std.fs.File) !bool {
-    switch (@import("builtin").os.tag) {
+fn terminalHasEvent(file: Io.File) !bool {
+    switch (builtin.os.tag) {
         .linux, .macos => {
-            var polls: [1]std.posix.pollfd = .{.{
+            var polls: [1]posix.pollfd = .{.{
                 .fd = file.handle,
-                .events = std.posix.POLL.IN,
+                .events = posix.POLL.IN,
                 .revents = 0,
             }};
-            return (try std.posix.poll(&polls, 0)) > 0;
+            return (try posix.poll(&polls, 0)) > 0;
         },
         .windows => {
             const result = winapiGlue.WaitForSingleObject(file.handle, 0);
@@ -169,14 +171,14 @@ fn terminalHasEvent(file: std.fs.File) !bool {
     }
 }
 
-fn readByteOrNull(reader: *std.Io.Reader) !?u8 {
+fn readByteOrNull(reader: *Io.Reader) !?u8 {
     return reader.takeByte() catch |err| switch (err) {
         error.EndOfStream => null,
         else => return err,
     };
 }
 
-fn parseEscapeSequence(reader: *std.Io.Reader) !Event {
+fn parseEscapeSequence(reader: *Io.Reader) !Event {
     const c1 = try readByteOrNull(reader) orelse return .invalid;
 
     switch (c1) {
@@ -376,9 +378,9 @@ fn parseEscapeSequence(reader: *std.Io.Reader) !Event {
 /// Returns the next event received.
 /// When used with canonical mode, the user needs to press enter to receive the event.
 /// When raw term is activated it will block until read at least one event.
-pub fn next(file: std.fs.File) !Event {
+pub fn next(io: Io, file: Io.File) !Event {
     var reader_buf: [1]u8 = undefined;
-    var file_reader = file.reader(&reader_buf);
+    var file_reader = file.reader(io, &reader_buf);
     const reader = &file_reader.interface;
 
     const c0 = try readByteOrNull(reader) orelse return .none;

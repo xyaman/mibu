@@ -39,5 +39,6 @@ pub fn build(b: *std.Build) void {
         const example_step = b.step(example_name, b.fmt("Run {s} example", .{example_name}));
         example_step.dependOn(&install_example.step);
         example_step.dependOn(&example.step);
+        test_step.dependOn(&example.step);
     }
 }

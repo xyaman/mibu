@@ -1,15 +1,14 @@
 const std = @import("std");
-const os = std.os;
-const io = std.io;
+const Io = std.Io;
 const posix = std.posix;
 const windows = std.os.windows;
 
-const utils = @import("utils.zig");
+const utils = @import("main.zig").utils;
 const winapiGlue = @import("winapiGlue.zig");
 
 const builtin = @import("builtin");
 
-pub fn enableRawMode(handle: std.fs.File.Handle) !RawTerm {
+pub fn enableRawMode(handle: Io.File.Handle) !RawTerm {
     switch (builtin.os.tag) {
         .linux => return enableRawModePosix(handle),
         .macos => return enableRawModePosix(handle),
@@ -75,7 +74,7 @@ pub const RawTerm = struct {
     },
 
     /// The OS-specific file descriptor or file handle.
-    handle: std.fs.File.Handle,
+    handle: Io.File.Handle,
 
     const Self = @This();
 
@@ -105,7 +104,7 @@ pub const TermSize = struct {
 };
 
 /// Get the terminal size, use `fd` equals to 0 use stdin
-pub fn getSize(handle: std.fs.File.Handle) !TermSize {
+pub fn getSize(handle: Io.File.Handle) !TermSize {
     switch (builtin.os.tag) {
         .linux => return getSizePosix(handle),
         .macos => return getSizePosix(handle),
@@ -118,7 +117,7 @@ fn getSizePosix(fd: posix.fd_t) !TermSize {
     var ws: posix.winsize = undefined;
 
     // tty_ioctl(4)
-    const err = std.posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
+    const err = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&ws));
     if (posix.errno(err) != .SUCCESS) {
         return error.IoctlError;
     }
@@ -140,12 +139,12 @@ fn getSizeWindows(handle: windows.HANDLE) !TermSize {
 
 /// Switches to an alternate screen mode in the console.
 /// `out`: needs to be writer
-pub fn enterAlternateScreen(writer: *std.Io.Writer) !void {
+pub fn enterAlternateScreen(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?1049h", .{})});
 }
 
 /// Returns the console to its normal screen mode after using the alternate screen mode.
 /// `out`: needs to be writer
-pub fn exitAlternateScreen(writer: *std.Io.Writer) !void {
+pub fn exitAlternateScreen(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }

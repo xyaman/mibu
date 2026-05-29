@@ -26,3 +26,4 @@ test {
     _ = scroll;
     _ = termbg;
 }
+

@@ -4,7 +4,7 @@
 
 **Status:** This library is in beta. Breaking changes may occur.
 
-> Tested with zig version `0.15.2` on Linux and Windows
+> Tested with zig version `0.16.0` on Linux and Windows
 
 ## Features
 

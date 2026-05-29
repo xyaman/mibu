@@ -1,4 +1,5 @@
 const std = @import("std");
+const Io = std.Io;
 const builtin = @import("builtin");
 const posix = std.posix;
 const windows = std.os.windows;
@@ -21,7 +22,7 @@ pub const Rgb16 = struct {
         };
     }
 
-    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(this: @This(), writer: *Io.Writer) Io.Writer.Error!void {
         try writer.print("Rgb16{{ r: {d}, g: {d}, b: {d} }}", .{ this.r, this.g, this.b });
     }
 };
@@ -32,17 +33,18 @@ pub const Theme = enum { dark, light };
 /// The terminal MUST already be in raw mode before calling this function.
 /// Blocks until a response is received.
 /// Returns error.NotSupported if the terminal ignores OSC 11.
-pub fn detect(input: std.fs.File, output: std.fs.File) !Rgb16 {
-    return detectImpl(input, output, -1);
+pub fn detect(io: Io, input: Io.File, output: *Io.Writer) !Rgb16 {
+    return detectImpl(io, input, output, -1);
 }
 
 /// Like detect, but returns error.Timeout if no response arrives within timeout_ms.
-pub fn detectWithTimeout(input: std.fs.File, output: std.fs.File, timeout_ms: u32) !Rgb16 {
-    return detectImpl(input, output, @intCast(timeout_ms));
+pub fn detectWithTimeout(io: Io, input: Io.File, output: *Io.Writer, timeout_ms: u32) !Rgb16 {
+    return detectImpl(io, input, output, @intCast(timeout_ms));
 }
 
-fn detectImpl(input: std.fs.File, output: std.fs.File, timeout: i32) !Rgb16 {
+fn detectImpl(io: Io, input: Io.File, output: *Io.Writer, timeout: i32) !Rgb16 {
     try output.writeAll("\x1b]11;?\x1b\\" ++ "\x1b[6n");
+    try output.flush();
 
     var buf: [128]u8 = undefined;
     var n: usize = 0;
@@ -55,7 +57,7 @@ fn detectImpl(input: std.fs.File, output: std.fs.File, timeout: i32) !Rgb16 {
                 .revents = 0,
             }};
             if (try posix.poll(&polls, timeout) == 0) return error.Timeout;
-            n = try input.read(buf[0..]);
+            n = try posix.read(input.handle, buf[0..]);
             // If the first read didn't contain the OSC 11 response, keep
             // polling. This handles ConPTY (WSL) where the cursor position
             // report (CSI 6n) arrives before the OSC 11 response because
@@ -63,7 +65,7 @@ fn detectImpl(input: std.fs.File, output: std.fs.File, timeout: i32) !Rgb16 {
             while (std.mem.indexOf(u8, buf[0..n], "rgb:") == null) {
                 if (n == buf.len) break;
                 if (try posix.poll(&polls, 50) == 0) break;
-                n += try input.read(buf[n..]);
+                n += try posix.read(input.handle, buf[n..]);
             }
         },
         .windows => {
@@ -71,9 +73,9 @@ fn detectImpl(input: std.fs.File, output: std.fs.File, timeout: i32) !Rgb16 {
             if (winapiGlue.WaitForSingleObject(input.handle, t) == winapiGlue.WAIT_TIMEOUT_VAL) {
                 return error.Timeout;
             }
-            n = try input.read(buf[0..]);
+            n = try input.readStreaming(io, &.{buf[0..]});
             if (n < buf.len and winapiGlue.WaitForSingleObject(input.handle, 50) == winapiGlue.WAIT_OBJECT_0) {
-                n += try input.read(buf[n..]);
+                n += try input.readStreaming(io, &.{buf[n..]});
             }
         },
         else => return error.UnsupportedPlatform,

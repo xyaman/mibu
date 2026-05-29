@@ -1,5 +1,7 @@
-const utils = @import("main.zig").utils;
 const std = @import("std");
+const Io = std.Io;
+
+const utils = @import("main.zig").utils;
 
 pub const print = struct {
     /// Returns the ANSI sequence as a []const u8
@@ -39,46 +41,46 @@ pub const print = struct {
 };
 
 /// Returns the ANSI sequence as a []const u8
-pub fn reset(writer: *std.Io.Writer) !void {
+pub fn reset(writer: *Io.Writer) !void {
     return writer.print(print.reset, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset bold mode
-pub fn bold(writer: *std.io.Writer, v: bool) !void {
+pub fn bold(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.bold, .{}) else writer.print(print.no_bold, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset dim mode
-pub fn dim(writer: *std.io.Writer, v: bool) !void {
+pub fn dim(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.dim, .{}) else writer.print(print.no_dim, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset italic mode
-pub fn italic(writer: *std.io.Writer, v: bool) !void {
+pub fn italic(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.italic, .{}) else writer.print(print.no_italic, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset underline mode
-pub fn underline(writer: *std.io.Writer, v: bool) !void {
+pub fn underline(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.underline, .{}) else writer.print(print.no_underline, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset blinking mode
-pub fn blinking(writer: *std.io.Writer, v: bool) !void {
+pub fn blinking(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.blinking, .{}) else writer.print(print.no_blinking, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset reverse mode
-pub fn reverse(writer: *std.io.Writer, v: bool) !void {
+pub fn reverse(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.reverse, .{}) else writer.print(print.no_reverse, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset hidden/invisible mode
-pub fn hidden(writer: *std.io.Writer, v: bool) !void {
+pub fn hidden(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.invisible, .{}) else writer.print(print.no_invisible, .{});
 }
 
 /// Outputs the ANSI sequence to set/unset strikethrough mode
-pub fn strikethrough(writer: *std.io.Writer, v: bool) !void {
+pub fn strikethrough(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.strikethrough, .{}) else writer.print(print.no_strikethrough, .{});
 }

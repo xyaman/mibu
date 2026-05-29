@@ -1,8 +1,8 @@
 const std = @import("std");
+const Io = std.Io;
 const fmt = std.fmt;
 
-const lib = @import("main.zig");
-const utils = lib.utils;
+const utils = @import("main.zig").utils;
 
 pub const print = struct {
     /// Moves cursor to `x` column and `y` row
@@ -62,47 +62,47 @@ pub const print = struct {
 };
 
 /// Moves cursor to `x` column and `y` row
-pub fn goTo(writer: *std.Io.Writer, x: anytype, y: anytype) !void {
+pub fn goTo(writer: *Io.Writer, x: anytype, y: anytype) !void {
     return writer.print(utils.csi ++ "{d};{d}H", .{ y, x });
 }
 
 /// Moves cursor up `y` rows
-pub fn goUp(writer: *std.Io.Writer, y: anytype) !void {
+pub fn goUp(writer: *Io.Writer, y: anytype) !void {
     return writer.print(utils.csi ++ "{d}A", .{y});
 }
 
 /// Moves cursor down `y` rows
-pub fn goDown(writer: *std.Io.Writer, y: anytype) !void {
+pub fn goDown(writer: *Io.Writer, y: anytype) !void {
     return writer.print(utils.csi ++ "{d}B", .{y});
 }
 
 /// Moves cursor left `x` columns
-pub fn goLeft(writer: *std.Io.Writer, x: anytype) !void {
+pub fn goLeft(writer: *Io.Writer, x: anytype) !void {
     return writer.print(utils.csi ++ "{d}D", .{x});
 }
 
 /// Moves cursor right `x` columns
-pub fn goRight(writer: *std.Io.Writer, x: anytype) !void {
+pub fn goRight(writer: *Io.Writer, x: anytype) !void {
     return writer.print(utils.csi ++ "{d}C", .{x});
 }
 
 /// Hide the cursor
-pub fn hide(writer: *std.Io.Writer) !void {
+pub fn hide(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ "?25l", .{});
 }
 
 /// Show the cursor
-pub fn show(writer: *std.Io.Writer) !void {
+pub fn show(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ "?25h", .{});
 }
 
 /// Save cursor position
-pub fn save(writer: *std.Io.Writer) !void {
+pub fn save(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ "s", .{});
 }
 
 /// Restore cursor position
-pub fn restore(writer: *std.Io.Writer) !void {
+pub fn restore(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ "u", .{});
 }
 
@@ -113,7 +113,7 @@ pub const Position = struct {
 
 /// Returns the cursor's coordinates. The terminal needs to be
 /// in raw mode or at least have echo disabled.
-pub fn getPosition(in: *std.Io.Reader, out: *std.io.Writer) !Position {
+pub fn getPosition(in: *Io.Reader, out: *Io.Writer) !Position {
     try out.print("\x1b[6n", .{});
     try out.flush();
 

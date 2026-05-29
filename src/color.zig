@@ -1,4 +1,5 @@
 const std = @import("std");
+const Io = std.Io;
 const fmt = std.fmt;
 
 const utils = @import("main.zig").utils;
@@ -9,7 +10,7 @@ pub const Rgb = struct {
     g: u8,
     b: u8,
 
-    pub fn format(this: @This(), writer: *std.io.Writer) std.io.Writer.Error!void {
+    pub fn format(this: @This(), writer: *Io.Writer) Io.Writer.Error!void {
         try writer.print("Rgb{{ r: {d}, g: {d}, b: {d} }}", .{ this.r, this.g, this.b });
     }
 };
@@ -310,26 +311,26 @@ pub const print = struct {
 };
 
 /// Writes the escape sequence code to change foreground to `color` (using 256 colors)
-pub fn fg256(writer: *std.Io.Writer, color: Color) !void {
+pub fn fg256(writer: *Io.Writer, color: Color) !void {
     return writer.print(utils.csi ++ utils.fg_256 ++ "{d}m", .{@intFromEnum(color)});
 }
 
 /// Writes the escape sequence code to change background to `color` (using 256 colors)
-pub fn bg256(writer: *std.Io.Writer, color: Color) !void {
+pub fn bg256(writer: *Io.Writer, color: Color) !void {
     return writer.print(utils.csi ++ utils.bg_256 ++ "{d}m", .{@intFromEnum(color)});
 }
 
 /// Writes the escape sequence code to change foreground to rgb color
-pub fn fgRGB(writer: *std.Io.Writer, rgb: Rgb) !void {
+pub fn fgRGB(writer: *Io.Writer, rgb: Rgb) !void {
     return writer.print(utils.csi ++ utils.fg_rgb ++ "{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 }
 
 /// Writes the escape sequence code to change background to rgb color
-pub fn bgRGB(writer: *std.Io.Writer, rgb: Rgb) !void {
+pub fn bgRGB(writer: *Io.Writer, rgb: Rgb) !void {
     return writer.print(utils.csi ++ utils.bg_rgb ++ "{d};{d};{d}m", .{ rgb.r, rgb.g, rgb.b });
 }
 
 /// Writes the escape code to reset style and color
-pub fn resetAll(writer: *std.Io.Writer) !void {
+pub fn resetAll(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ utils.reset_all, .{});
 }
