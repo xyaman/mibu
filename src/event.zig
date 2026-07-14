@@ -122,38 +122,31 @@ pub const MouseButton = enum {
 /// When raw terminal mode is activated, the function waits up to the specified timeout
 /// for at least one event before returning.
 pub fn nextWithTimeout(io: Io, file: Io.File, timeout_ms: i32) !Event {
-    switch (builtin.os.tag) {
-        .linux, .macos => return nextWithTimeoutPosix(io, file, timeout_ms),
-        .windows => return nextWithTimeoutWindows(io, file, timeout_ms),
-        else => return error.UnsupportedPlatform,
+    if (!try pollReadable(file, timeout_ms)) return .timeout;
+
+    var reader_buf: [1]u8 = undefined;
+    var file_reader = file.reader(io, &reader_buf);
+    const reader = &file_reader.interface;
+
+    var buf: [64]u8 = undefined;
+    var len: usize = 0;
+    while (len < buf.len) {
+        const b = (try readByteOrNull(reader)) orelse return flush(buf[0..len]);
+        buf[len] = b;
+        len += 1;
+        switch (parse(buf[0..len])) {
+            .event => |e| return e.event,
+            // Lone ESC, nothing else waiting -> Escape key.
+            .incomplete => if (len == 1 and buf[0] == 0x1b and !(try pollReadable(file, 0))) {
+                return flush(buf[0..1]);
+            },
+        }
     }
+    return .invalid;
 }
 
-fn nextWithTimeoutWindows(io: Io, file: Io.File, timeout_ms: i32) !Event {
-    const timeout: windows.DWORD = if (timeout_ms < 0) winapiGlue.INFINITE else @intCast(timeout_ms);
-    const result = winapiGlue.WaitForSingleObject(file.handle, timeout);
-    return switch (result) {
-        winapiGlue.WAIT_OBJECT_0 => next(io, file),
-        winapiGlue.WAIT_TIMEOUT_VAL => .timeout,
-        else => error.WaitError,
-    };
-}
-
-fn nextWithTimeoutPosix(io: Io, file: Io.File, timeout_ms: i32) !Event {
-    var polls: [1]posix.pollfd = .{.{
-        .fd = file.handle,
-        .events = posix.POLL.IN,
-        .revents = 0,
-    }};
-    if ((try posix.poll(&polls, timeout_ms)) > 0) {
-        return next(io, file);
-    }
-
-    return .timeout;
-}
-
-/// Returns true if there are events, false otherwise
-fn terminalHasEvent(file: Io.File) !bool {
+/// Poll `file` for readability (ms; 0 = non-blocking, <0 = forever).
+fn pollReadable(file: Io.File, timeout_ms: i32) !bool {
     switch (builtin.os.tag) {
         .linux, .macos => {
             var polls: [1]posix.pollfd = .{.{
@@ -161,11 +154,11 @@ fn terminalHasEvent(file: Io.File) !bool {
                 .events = posix.POLL.IN,
                 .revents = 0,
             }};
-            return (try posix.poll(&polls, 0)) > 0;
+            return (try posix.poll(&polls, timeout_ms)) > 0;
         },
         .windows => {
-            const result = winapiGlue.WaitForSingleObject(file.handle, 0);
-            return result == winapiGlue.WAIT_OBJECT_0;
+            const t: windows.DWORD = if (timeout_ms < 0) winapiGlue.INFINITE else @intCast(timeout_ms);
+            return winapiGlue.WaitForSingleObject(file.handle, t) == winapiGlue.WAIT_OBJECT_0;
         },
         else => return error.UnsupportedPlatform,
     }
@@ -445,24 +438,20 @@ fn decodeUtf8(bytes: []const u8) !u21 {
     };
 }
 
-/// Returns the next event received.
-/// When used with canonical mode, the user needs to press enter to receive the event.
-/// When raw term is activated it will block until it reads at least one event.
-pub fn next(io: Io, file: Io.File) !Event {
-    var reader_buf: [1]u8 = undefined;
-    var file_reader = file.reader(io, &reader_buf);
-    const reader = &file_reader.interface;
-
-    var parser: Parser = .{};
-    while (true) {
-        if (parser.state == .escape and !(try terminalHasEvent(file))) {
-            return key(.esc);
+/// Next event from `reader`, blocking. Use `nextWithTimeout` for immediate lone-ESC on a terminal.
+pub fn next(reader: *Io.Reader) !Event {
+    var buf: [64]u8 = undefined;
+    var len: usize = 0;
+    while (len < buf.len) {
+        const b = (try readByteOrNull(reader)) orelse return flush(buf[0..len]);
+        buf[len] = b;
+        len += 1;
+        switch (parse(buf[0..len])) {
+            .event => |e| return e.event,
+            .incomplete => {},
         }
-        const b = (try readByteOrNull(reader)) orelse {
-            return if (parser.state == .ground) .none else .invalid;
-        };
-        if (parser.step(b)) |ev| return ev;
     }
+    return .invalid;
 }
 
 /// Outcome of `parse`: a completed event (with bytes consumed) or `.incomplete`.
@@ -679,4 +668,19 @@ test "flush: lone ESC resolves to escape, empty to none" {
 test "flush: truncated sequence is invalid, complete one parses" {
     try testing.expect(flush("\x1b[") == .invalid);
     try testing.expect(flush("\x1b[A").key.code == .up);
+}
+
+test "next: reads one event from a reader" {
+    var r = std.Io.Reader.fixed("\x1b[A");
+    try testing.expect((try next(&r)).key.code == .up);
+}
+
+test "next: empty reader -> none" {
+    var r = std.Io.Reader.fixed("");
+    try testing.expect(try next(&r) == .none);
+}
+
+test "next: lone ESC at EOF -> esc" {
+    var r = std.Io.Reader.fixed("\x1b");
+    try testing.expect((try next(&r)).key.code == .esc);
 }
