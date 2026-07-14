@@ -465,6 +465,34 @@ pub fn next(io: Io, file: Io.File) !Event {
     }
 }
 
+/// Outcome of `parse`: a completed event (with bytes consumed) or `.incomplete`.
+pub const ParseResult = union(enum) {
+    event: struct { event: Event, consumed: usize },
+    incomplete,
+};
+
+/// Parse one event from the front of `bytes` (slice driver over `Parser.step`).
+/// `.incomplete` means `bytes` is a prefix of a longer sequence; feed more, then
+/// re-parse. A lone/trailing ESC is `.incomplete` — resolve it with `flush`.
+pub fn parse(bytes: []const u8) ParseResult {
+    var p: Parser = .{};
+    for (bytes, 0..) |b, i| {
+        if (p.step(b)) |ev| return .{ .event = .{ .event = ev, .consumed = i + 1 } };
+    }
+    return .incomplete;
+}
+
+/// Resolve a buffer that will get no more bytes (ESC-timeout / EOF): lone ESC ->
+/// Escape key, empty -> `.none`, any other partial -> `.invalid`.
+pub fn flush(bytes: []const u8) Event {
+    if (bytes.len == 0) return .none;
+    if (bytes.len == 1 and bytes[0] == 0x1b) return key(.esc);
+    return switch (parse(bytes)) {
+        .event => |e| e.event,
+        .incomplete => .invalid,
+    };
+}
+
 fn parseMouseAction(action: u8) !Mouse {
     // Normal tracking mode sends an escape sequence on both button press and
     // release.  Modifier key (shift, ctrl, meta) information is also sent.  It
@@ -617,4 +645,38 @@ test "machine: x10 mouse" {
     try testing.expect(e == .mouse);
     try testing.expect(e.mouse.button == .left);
     try testing.expect(e.mouse.x == 1 and e.mouse.y == 2);
+}
+
+test "parse: single char, one byte consumed" {
+    const r = parse("a");
+    try testing.expect(r == .event);
+    try testing.expectEqual(@as(usize, 1), r.event.consumed);
+    try testing.expect(r.event.event.matchesChar('a', .{}));
+}
+
+test "parse: arrow up, three bytes consumed" {
+    const r = parse("\x1b[A");
+    try testing.expectEqual(@as(usize, 3), r.event.consumed);
+    try testing.expect(r.event.event.key.code == .up);
+}
+
+test "parse: consumes only the event's bytes" {
+    const r = parse("\x1b[Ax"); // trailing 'x' left for the next parse
+    try testing.expectEqual(@as(usize, 3), r.event.consumed);
+}
+
+test "parse: incomplete on partial or empty input" {
+    try testing.expect(parse("\x1b[") == .incomplete);
+    try testing.expect(parse("\x1b") == .incomplete);
+    try testing.expect(parse("") == .incomplete);
+}
+
+test "flush: lone ESC resolves to escape, empty to none" {
+    try testing.expect(flush("\x1b").key.code == .esc);
+    try testing.expect(flush("") == .none);
+}
+
+test "flush: truncated sequence is invalid, complete one parses" {
+    try testing.expect(flush("\x1b[") == .invalid);
+    try testing.expect(flush("\x1b[A").key.code == .up);
 }
