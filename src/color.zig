@@ -1,6 +1,5 @@
 const std = @import("std");
 const Io = std.Io;
-const fmt = std.fmt;
 
 const utils = @import("main.zig").utils;
 
@@ -291,20 +290,6 @@ pub const print = struct {
     /// Returns a string to change text background using 256 colors
     pub inline fn bg(comptime color: Color) []const u8 {
         return utils.comptimeCsi("48;5;{d}m", .{@intFromEnum(color)});
-    }
-
-    /// Returns a string to change text foreground using rgb colors
-    /// Uses a buffer.
-    pub inline fn fgRGB(r: u8, g: u8, b: u8) []const u8 {
-        var buf: [22]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[38;2;{d};{d};{d}m", .{ r, g, b }) catch unreachable;
-    }
-
-    /// Returns a string to change text background using rgb colors
-    /// Uses a buffer.
-    pub inline fn bgRGB(r: u8, g: u8, b: u8) []const u8 {
-        var buf: [22]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[48;2;{d};{d};{d}m", .{ r, g, b }) catch unreachable;
     }
 
     pub const reset = utils.comptimeCsi("0m", .{});

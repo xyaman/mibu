@@ -1,45 +1,9 @@
 const std = @import("std");
 const Io = std.Io;
-const fmt = std.fmt;
 
 const utils = @import("main.zig").utils;
 
 pub const print = struct {
-    /// Moves cursor to `x` column and `y` row
-    pub inline fn goTo(x: anytype, y: anytype) []const u8 {
-        // i guess is ok with this size for now
-        var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ y, x }) catch unreachable;
-    }
-
-    /// Moves cursor up `y` rows
-    pub inline fn goUp(y: anytype) []const u8 {
-        // i guess is ok with this size for now
-        var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d}A", .{y}) catch unreachable;
-    }
-
-    /// Moves cursor down `y` rows
-    pub inline fn goDown(y: anytype) []const u8 {
-        // i guess is ok with this size for now
-        var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d}B", .{y}) catch unreachable;
-    }
-
-    /// Moves cursor left `x` columns
-    pub inline fn goLeft(x: anytype) []const u8 {
-        // i guess is ok with this size for now
-        var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d}D", .{x}) catch unreachable;
-    }
-
-    /// Moves cursor right `x` columns
-    pub inline fn goRight(x: anytype) []const u8 {
-        // i guess is ok with this size for now
-        var buf: [30]u8 = undefined;
-        return fmt.bufPrint(&buf, "\x1b[{d}C", .{x}) catch unreachable;
-    }
-
     /// Hide the cursor
     pub inline fn hide() []const u8 {
         return utils.comptimeCsi("?25l", .{});
