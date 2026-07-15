@@ -148,3 +148,33 @@ pub fn enterAlternateScreen(writer: *Io.Writer) !void {
 pub fn exitAlternateScreen(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }
+
+/// Kitty keyboard protocol progressive-enhancement flags.
+/// https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
+pub const KittyFlags = packed struct {
+    disambiguate: bool = false, // 1: unambiguous escape codes
+    report_events: bool = false, // 2: press/repeat/release
+    alternate_keys: bool = false, // 4: shifted/base key codes
+    all_as_escape: bool = false, // 8: report all keys as escape codes
+    report_text: bool = false, // 16: associated text
+
+    pub fn bits(self: KittyFlags) u5 {
+        return @bitCast(self);
+    }
+};
+
+/// Query Kitty keyboard support (`CSI ? u`). Parse the reply with
+/// `events.kittyFlagsResponse`.
+pub fn queryKittyKeyboard(writer: *Io.Writer) !void {
+    try writer.writeAll(utils.comptimeCsi("?u", .{}));
+}
+
+/// Push and enable Kitty keyboard flags (`CSI > flags u`). Pair with `popKittyKeyboard`.
+pub fn pushKittyKeyboard(writer: *Io.Writer, flags: KittyFlags) !void {
+    try writer.print("{s}{d}u", .{ utils.csi ++ ">", flags.bits() });
+}
+
+/// Pop the last pushed flags (`CSI < u`), restoring the prior mode.
+pub fn popKittyKeyboard(writer: *Io.Writer) !void {
+    try writer.writeAll(utils.comptimeCsi("<u", .{}));
+}

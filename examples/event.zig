@@ -34,7 +34,13 @@ pub fn main(init: std.process.Init) !void {
     try stdout.print("{s}", .{mibu.utils.enable_mouse_tracking});
     defer stdout.print("{s}", .{mibu.utils.disable_mouse_tracking}) catch {};
 
-    try stdout.print("Press q or Ctrl-C to exit...\n\r", .{});
+    // Opt into the Kitty keyboard protocol if the terminal supports it, so we
+    // get press/repeat/release and unambiguous modifiers. Legacy path otherwise.
+    const supports_kitty = try events.supportsKittyKeyboard(init.io, stdin, stdout, 1000);
+    if (supports_kitty) try term.pushKittyKeyboard(stdout, .{ .disambiguate = true, .report_events = true });
+    defer if (supports_kitty) term.popKittyKeyboard(stdout) catch {};
+
+    try stdout.print("Press Ctrl-C to exit...\n\r");
     try stdout.flush();
 
     while (true) {
@@ -45,7 +51,7 @@ pub fn main(init: std.process.Init) !void {
                     if (k.mods.ctrl and char == 'c') {
                         break;
                     }
-                    try stdout.print("Pressed: {f}\n\r", .{k});
+                    try stdout.print("Pressed: {f} [{s}]\n\r", .{ k, @tagName(k.event) });
                 },
                 else => {},
             },

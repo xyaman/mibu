@@ -10,7 +10,15 @@ pub const Modifiers = packed struct {
     shift: bool = false,
     alt: bool = false,
     ctrl: bool = false,
+
+    // Kitty-only; legacy paths leave these false.
+    super: bool = false,
+    hyper: bool = false,
+    meta: bool = false,
 };
+
+/// Kitty reports these; legacy sequences are always `.press`.
+pub const KeyEvent = enum { press, repeat, release };
 
 pub const KeyCode = union(enum) {
     char: u21,
@@ -45,14 +53,15 @@ pub const KeyCode = union(enum) {
 pub const Key = struct {
     mods: Modifiers = .{},
     code: KeyCode,
+    event: KeyEvent = .press,
 
     pub fn format(this: @This(), writer: *Io.Writer) Io.Writer.Error!void {
         try writer.writeAll("Key{ ");
         var first = true;
 
-        if (this.mods.shift or this.mods.alt or this.mods.ctrl) {
+        if (@as(u6, @bitCast(this.mods)) != 0) {
             try writer.writeAll("mods: ");
-            try writer.print("{{shift: {}, alt: {}, ctrl: {}}}", .{ this.mods.shift, this.mods.alt, this.mods.ctrl });
+            try writer.print("{{shift: {}, alt: {}, ctrl: {}, super: {}, hyper: {}, meta: {}}}", .{ this.mods.shift, this.mods.alt, this.mods.ctrl, this.mods.super, this.mods.hyper, this.mods.meta });
             first = false;
         }
 
@@ -145,8 +154,44 @@ pub fn nextWithTimeout(io: Io, file: Io.File, timeout_ms: i32) !Event {
     return .invalid;
 }
 
+/// Detect Kitty keyboard support. Call in raw mode, before
+/// the event loop (it drains the replies). `timeout_ms` bounds an unresponsive
+/// terminal.
+pub fn supportsKittyKeyboard(io: Io, file: Io.File, writer: *Io.Writer, timeout_ms: i32) !bool {
+    try writer.writeAll("\x1b[?u\x1b[c"); // query + DA1
+    try writer.flush();
+
+    var reader_buf: [1]u8 = undefined;
+    var file_reader = file.reader(io, &reader_buf);
+    const reader = &file_reader.interface;
+
+    // Read up to the DA1 'c' terminator ('c' can't appear in the Kitty reply).
+    var buf: [64]u8 = undefined;
+    var len: usize = 0;
+    while (len < buf.len) {
+        if (!try pollReadable(file, timeout_ms)) break;
+        const b = (try readByteOrNull(reader)) orelse break;
+        buf[len] = b;
+        len += 1;
+        if (b == 'c') break;
+    }
+    return kittyReplyPresent(buf[0..len]);
+}
+
+/// True if `bytes` contains a Kitty flags reply `CSI ? <digits> u`.
+fn kittyReplyPresent(bytes: []const u8) bool {
+    var i: usize = 0;
+    while (i + 3 < bytes.len) : (i += 1) {
+        if (bytes[i] != 0x1b or bytes[i + 1] != '[' or bytes[i + 2] != '?') continue;
+        var j = i + 3;
+        while (j < bytes.len and bytes[j] != 'u' and bytes[j] != 'c') : (j += 1) {}
+        if (j < bytes.len and bytes[j] == 'u') return kittyFlagsResponse(bytes[i .. j + 1]) != null;
+    }
+    return false;
+}
+
 /// Poll `file` for readability (ms; 0 = non-blocking, <0 = forever).
-fn pollReadable(file: Io.File, timeout_ms: i32) !bool {
+pub fn pollReadable(file: Io.File, timeout_ms: i32) !bool {
     switch (builtin.os.tag) {
         .linux, .macos => {
             var polls: [1]posix.pollfd = .{.{
@@ -176,11 +221,14 @@ fn readByteOrNull(reader: *Io.Reader) !?u8 {
 const Parser = struct {
     state: State = .ground,
 
-    // CSI numeric params (`;`/`:`-separated; sub-params folded in for now).
-    params: [8]u16 = undefined,
+    // CSI params: `;` separates groups, `:` sub-params. `subparam[i]` marks a
+    // `:`-continuation of the prior param's group (Kitty `key:… ; mods:event`).
+    params: [16]u16 = undefined,
+    subparam: [16]bool = undefined,
     param_count: usize = 0,
     param_cur: u32 = 0,
     param_digits: bool = false,
+    pending_subparam: bool = false, // param being accumulated followed a `:`
     private: u8 = 0, // '<' '=' '>' '?' seen before params, else 0
 
     // UTF-8 assembly
@@ -283,8 +331,14 @@ const Parser = struct {
                 p.param_digits = true;
                 return null;
             },
-            ';', ':' => {
+            ';' => {
                 p.pushParam();
+                p.pending_subparam = false;
+                return null;
+            },
+            ':' => {
+                p.pushParam();
+                p.pending_subparam = true;
                 return null;
             },
             '<', '=', '>', '?' => {
@@ -349,10 +403,27 @@ const Parser = struct {
     fn pushParam(p: *Parser) void {
         if (p.param_count < p.params.len) {
             p.params[p.param_count] = if (p.param_digits) @truncate(p.param_cur) else 0;
+            p.subparam[p.param_count] = p.pending_subparam;
             p.param_count += 1;
         }
         p.param_cur = 0;
         p.param_digits = false;
+    }
+
+    /// Value of sub-param `si` in `;`-group `gi` (0-based), or null if absent.
+    fn groupSub(p: *Parser, gi: usize, si: usize) ?u16 {
+        var g: usize = 0;
+        var s: usize = 0;
+        for (0..p.param_count) |i| {
+            if (i != 0) {
+                if (p.subparam[i]) s += 1 else {
+                    g += 1;
+                    s = 0;
+                }
+            }
+            if (g == gi and s == si) return p.params[i];
+        }
+        return null;
     }
 
     /// Map a completed CSI sequence (params + final byte) to a key event.
@@ -371,8 +442,24 @@ const Parser = struct {
                 const code = tildeCode(n) orelse return .invalid;
                 return keyMods(code, mods);
             },
+            'u' => return p.dispatchKitty(),
             else => return .invalid,
         }
+    }
+
+    /// Kitty `CSI key:… ; mods:event ; text u`. The `?`-private query response
+    /// is not a key — use `kittyFlagsResponse` for that.
+    fn dispatchKitty(p: *Parser) Event {
+        if (p.private == '?') return .invalid;
+        const cp = p.groupSub(0, 0) orelse return .invalid;
+        const code = kittyKeyCode(cp) orelse return .invalid;
+        const mods = if (p.groupSub(1, 0)) |m| modsFromParam(m) else Modifiers{};
+        const event: KeyEvent = switch (p.groupSub(1, 1) orelse 1) {
+            2 => .repeat,
+            3 => .release,
+            else => .press,
+        };
+        return .{ .key = .{ .code = code, .mods = mods, .event = event } };
     }
 };
 
@@ -392,14 +479,78 @@ fn emitChar(cp: u21) Event {
     return key(.{ .char = cp });
 }
 
-/// xterm modifier param encoding: 1 + bitmask (1=shift, 2=alt, 4=ctrl).
+/// xterm modifier encoding: 1 + bitmask. Kitty adds 8/16/32 (super/hyper/meta);
+/// 64/128 caps/num-lock ignored.
 fn modsFromParam(v: u16) Modifiers {
     const m = if (v > 0) v - 1 else 0;
     return .{
         .shift = m & 1 != 0,
         .alt = m & 2 != 0,
         .ctrl = m & 4 != 0,
+        .super = m & 8 != 0,
+        .hyper = m & 16 != 0,
+        .meta = m & 32 != 0,
     };
+}
+
+/// Kitty `CSI codepoint u` -> KeyCode. C0-legacy keys keep their ASCII codes;
+/// functional keys live in the Unicode PUA.
+fn kittyKeyCode(cp: u21) ?KeyCode {
+    switch (cp) {
+        13 => return .enter,
+        9 => return .tab,
+        27 => return .esc,
+        8, 127 => return .backspace,
+        else => {},
+    }
+    if (functionalKey(cp)) |code| return code;
+    return .{ .char = cp };
+}
+
+/// Kitty functional-key codepoints (PUA 57344+); unmapped ones yield null.
+fn functionalKey(cp: u21) ?KeyCode {
+    return switch (cp) {
+        57344 => .esc,
+        57345 => .enter,
+        57346 => .tab,
+        57347 => .backspace,
+        57348 => .insert,
+        57349 => .delete,
+        57350 => .left,
+        57351 => .right,
+        57352 => .up,
+        57353 => .down,
+        57354 => .page_up,
+        57355 => .page_down,
+        57356 => .home,
+        57357 => .end,
+        57364 => .f1,
+        57365 => .f2,
+        57366 => .f3,
+        57367 => .f4,
+        57368 => .f5,
+        57369 => .f6,
+        57370 => .f7,
+        57371 => .f8,
+        57372 => .f9,
+        57373 => .f10,
+        57374 => .f11,
+        57375 => .f12,
+        else => null,
+    };
+}
+
+/// Parse a Kitty query response `CSI ? flags u` -> the flags bitmask, else null.
+pub fn kittyFlagsResponse(bytes: []const u8) ?u8 {
+    if (bytes.len < 4) return null;
+    if (bytes[0] != 0x1b or bytes[1] != '[' or bytes[2] != '?') return null;
+    if (bytes[bytes.len - 1] != 'u') return null;
+    var flags: u16 = 0;
+    for (bytes[3 .. bytes.len - 1]) |b| {
+        if (b < '0' or b > '9') return null;
+        flags = flags *% 10 +% (b - '0');
+    }
+    return @truncate(flags);
 }
 
 /// First param of a `~`-terminated CSI -> named key (home/insert/…/f-keys).
@@ -634,6 +785,68 @@ test "machine: x10 mouse" {
     try testing.expect(e == .mouse);
     try testing.expect(e.mouse.button == .left);
     try testing.expect(e.mouse.x == 1 and e.mouse.y == 2);
+}
+
+test "kitty: plain codepoint" {
+    const e = feed("\x1b[97u").?;
+    try testing.expect(e.key.code.char == 'a');
+    try testing.expect(@as(u6, @bitCast(e.key.mods)) == 0);
+    try testing.expect(e.key.event == .press);
+}
+
+test "kitty: ctrl+a via modifier group" {
+    const e = feed("\x1b[97;5u").?;
+    try testing.expect(e.key.code.char == 'a');
+    try testing.expect(e.key.mods.ctrl and !e.key.mods.shift and !e.key.mods.alt);
+}
+
+test "kitty: super modifier" {
+    const e = feed("\x1b[97;9u").?;
+    try testing.expect(e.key.mods.super and !e.key.mods.ctrl);
+}
+
+test "kitty: functional keys map to named codes" {
+    try testing.expect(feed("\x1b[57352u").?.key.code == .up);
+    try testing.expect(feed("\x1b[57356u").?.key.code == .home);
+    try testing.expect(feed("\x1b[57364u").?.key.code == .f1);
+    try testing.expect(feed("\x1b[57375u").?.key.code == .f12);
+}
+
+test "kitty: legacy C0 keys keep their code" {
+    try testing.expect(feed("\x1b[13u").?.key.code == .enter);
+    try testing.expect(feed("\x1b[9u").?.key.code == .tab);
+    try testing.expect(feed("\x1b[27u").?.key.code == .esc);
+    try testing.expect(feed("\x1b[127u").?.key.code == .backspace);
+}
+
+test "kitty: event type from second sub-param" {
+    try testing.expect(feed("\x1b[97;1:1u").?.key.event == .press);
+    try testing.expect(feed("\x1b[97;1:2u").?.key.event == .repeat);
+    try testing.expect(feed("\x1b[97;1:3u").?.key.event == .release);
+}
+
+test "kitty: shift via mods keeps lowercase codepoint" {
+    const e = feed("\x1b[97;2u").?;
+    try testing.expect(e.key.code.char == 'a' and e.key.mods.shift);
+}
+
+test "kitty: query response is not a key event" {
+    try testing.expect(feed("\x1b[?1u").? == .invalid);
+}
+
+test "kitty: parse flags response" {
+    try testing.expectEqual(@as(?u8, 1), kittyFlagsResponse("\x1b[?1u"));
+    try testing.expectEqual(@as(?u8, 25), kittyFlagsResponse("\x1b[?25u"));
+    try testing.expectEqual(@as(?u8, null), kittyFlagsResponse("\x1b[?1"));
+    try testing.expectEqual(@as(?u8, null), kittyFlagsResponse("\x1b[1u"));
+}
+
+test "kitty: reply detected only when it precedes DA1" {
+    // Kitty reply then DA1 -> supported.
+    try testing.expect(kittyReplyPresent("\x1b[?1u\x1b[?64;1c"));
+    // DA1 only -> unsupported (the `?...c` is not a `?...u`).
+    try testing.expect(!kittyReplyPresent("\x1b[?64;1c"));
+    try testing.expect(!kittyReplyPresent(""));
 }
 
 test "parse: single char, one byte consumed" {
