@@ -36,7 +36,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Opt into the Kitty keyboard protocol if the terminal supports it, so we
     // get press/repeat/release and unambiguous modifiers. Legacy path otherwise.
-    const supports_kitty = try events.supportsKittyKeyboard(init.io, stdin, stdout, 1000);
+    const supports_kitty = try events.supportsKittyKeyboardWithTimeout(init.io, stdin, stdout, 1000);
     if (supports_kitty) try term.pushKittyKeyboard(stdout, .{ .disambiguate = true, .report_events = true });
     defer if (supports_kitty) term.popKittyKeyboard(stdout) catch {};
 

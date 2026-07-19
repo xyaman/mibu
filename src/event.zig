@@ -158,10 +158,8 @@ pub fn nextWithTimeout(io: Io, file: Io.File, timeout_ms: i32) !Event {
     return .invalid;
 }
 
-/// Detect Kitty keyboard support. Call in raw mode, before
-/// the event loop (it drains the replies). `timeout_ms` bounds an unresponsive
-/// terminal.
-pub fn supportsKittyKeyboard(io: Io, file: Io.File, writer: *Io.Writer, timeout_ms: i32) !bool {
+/// Blocking Kitty keyboard-support probe (see `kittyKeyboardSupported`); blocks the thread like `nextWithTimeout`.
+pub fn supportsKittyKeyboardWithTimeout(io: Io, file: Io.File, writer: *Io.Writer, timeout_ms: i32) !bool {
     try writer.writeAll("\x1b[?u\x1b[c"); // query + DA1
     try writer.flush();
 
@@ -179,11 +177,11 @@ pub fn supportsKittyKeyboard(io: Io, file: Io.File, writer: *Io.Writer, timeout_
         len += 1;
         if (b == 'c') break;
     }
-    return kittyReplyPresent(buf[0..len]);
+    return kittyKeyboardSupported(buf[0..len]);
 }
 
-/// True if `bytes` contains a Kitty flags reply `CSI ? <digits> u`.
-fn kittyReplyPresent(bytes: []const u8) bool {
+/// True if `bytes` contains a Kitty keyboard reply `CSI ? <flags> u` (the pure support check).
+pub fn kittyKeyboardSupported(bytes: []const u8) bool {
     var i: usize = 0;
     while (i + 3 < bytes.len) : (i += 1) {
         if (bytes[i] != 0x1b or bytes[i + 1] != '[' or bytes[i + 2] != '?') continue;
@@ -948,10 +946,10 @@ test "kitty: parse flags response" {
 
 test "kitty: reply detected only when it precedes DA1" {
     // Kitty reply then DA1 -> supported.
-    try testing.expect(kittyReplyPresent("\x1b[?1u\x1b[?64;1c"));
+    try testing.expect(kittyKeyboardSupported("\x1b[?1u\x1b[?64;1c"));
     // DA1 only -> unsupported (the `?...c` is not a `?...u`).
-    try testing.expect(!kittyReplyPresent("\x1b[?64;1c"));
-    try testing.expect(!kittyReplyPresent(""));
+    try testing.expect(!kittyKeyboardSupported("\x1b[?64;1c"));
+    try testing.expect(!kittyKeyboardSupported(""));
 }
 
 test "parse: single char, one byte consumed" {
