@@ -169,6 +169,21 @@ pub fn disableBracketedPaste(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?2004l", .{})});
 }
 
+/// Enable in-band resize reports (DEC mode 2048) as `events.Event.resize`.
+pub fn enableInBandResize(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2048h", .{})});
+}
+
+/// Disable in-band resize reports (DEC mode 2048).
+pub fn disableInBandResize(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2048l", .{})});
+}
+
+/// DECRQM query for a private mode (`CSI ? mode $ p`); parse the reply with `events.parseModeReport`.
+pub fn requestMode(writer: *Io.Writer, mode: u16) !void {
+    try writer.print(utils.csi ++ "?{d}$p", .{mode});
+}
+
 /// Kitty keyboard protocol progressive-enhancement flags.
 /// https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
 pub const KittyFlags = packed struct {

@@ -79,6 +79,7 @@ pub const Key = struct {
 pub const Event = union(enum) {
     key: Key,
     mouse: Mouse,
+    // Size changed (in-band mode-2048 report or SIGWINCH); read `term.getSize`.
     resize,
     // Bracketed paste boundaries (DECSET 2004); content between them arrives as normal events.
     paste_start,
@@ -191,6 +192,77 @@ fn kittyReplyPresent(bytes: []const u8) bool {
         if (j < bytes.len and bytes[j] == 'u') return kittyFlagsResponse(bytes[i .. j + 1]) != null;
     }
     return false;
+}
+
+/// DECRPM mode state reported for a DECRQM query.
+pub const ModeStatus = enum {
+    not_recognized, // 0: unsupported
+    set, // 1
+    reset, // 2
+    permanently_set, // 3
+    permanently_reset, // 4
+
+    /// Usable: recognized and not permanently disabled (excludes 0 and 4).
+    pub fn supported(self: ModeStatus) bool {
+        return switch (self) {
+            .set, .reset, .permanently_set => true,
+            .not_recognized, .permanently_reset => false,
+        };
+    }
+};
+
+/// Blocking DECRQM probe for `mode` (see `parseModeReport`); blocks the thread like `nextWithTimeout`.
+pub fn queryModeWithTimeout(io: Io, file: Io.File, writer: *Io.Writer, mode: u16, timeout_ms: i32) !ModeStatus {
+    try writer.print("\x1b[?{d}$p\x1b[c", .{mode}); // DECRQM + DA1 sentinel
+    try writer.flush();
+
+    var reader_buf: [1]u8 = undefined;
+    var file_reader = file.reader(io, &reader_buf);
+    const reader = &file_reader.interface;
+
+    // Read until the DA1 'c'; the DECRPM reply precedes it.
+    var buf: [64]u8 = undefined;
+    var len: usize = 0;
+    while (len < buf.len) {
+        if (!try pollReadable(file, timeout_ms)) break;
+        const b = (try readByteOrNull(reader)) orelse break;
+        buf[len] = b;
+        len += 1;
+        if (b == 'c') break;
+    }
+    return parseModeReport(buf[0..len], mode);
+}
+
+/// Parse a DECRPM reply `CSI ? <mode> ; <status> $ y` for `mode`; missing reply or status 0 -> `not_recognized`.
+pub fn parseModeReport(bytes: []const u8, mode: u16) ModeStatus {
+    var i: usize = 0;
+    while (i + 3 < bytes.len) : (i += 1) {
+        if (bytes[i] != 0x1b or bytes[i + 1] != '[' or bytes[i + 2] != '?') continue;
+        var j = i + 3;
+        var m: u32 = 0;
+        var got_mode = false;
+        while (j < bytes.len and bytes[j] >= '0' and bytes[j] <= '9') : (j += 1) {
+            m = m *% 10 +% (bytes[j] - '0');
+            got_mode = true;
+        }
+        if (!got_mode or m != mode or j >= bytes.len or bytes[j] != ';') continue;
+        j += 1;
+        var s: u32 = 0;
+        var got_status = false;
+        while (j < bytes.len and bytes[j] >= '0' and bytes[j] <= '9') : (j += 1) {
+            s = s *% 10 +% (bytes[j] - '0');
+            got_status = true;
+        }
+        if (!got_status or j + 1 >= bytes.len or bytes[j] != '$' or bytes[j + 1] != 'y') continue;
+        return switch (s) {
+            1 => .set,
+            2 => .reset,
+            3 => .permanently_set,
+            4 => .permanently_reset,
+            else => .not_recognized,
+        };
+    }
+    return .not_recognized;
 }
 
 /// Poll `file` for readability (ms; 0 = non-blocking, <0 = forever).
@@ -448,6 +520,8 @@ const Parser = struct {
                 return keyMods(code, mods);
             },
             'u' => return p.dispatchKitty(),
+            // In-band resize report `CSI 48 … t` (DEC mode 2048).
+            't' => return if (p.param_count >= 1 and p.params[0] == 48) .resize else .invalid,
             else => return .invalid,
         }
     }
@@ -750,6 +824,27 @@ test "machine: insert (fixed) and other tilde keys" {
 test "machine: bracketed paste markers" {
     try testing.expect(feed("\x1b[200~").? == .paste_start);
     try testing.expect(feed("\x1b[201~").? == .paste_end);
+}
+
+test "machine: in-band resize report (mode 2048)" {
+    try testing.expect(feed("\x1b[48;24;80;600;800t").? == .resize);
+    // A CSI ... t not led by 48 is not a resize.
+    try testing.expect(feed("\x1b[8;24;80t").? == .invalid);
+}
+
+test "decrpm: mode status from a DECRQM reply" {
+    try testing.expect(parseModeReport("\x1b[?2048;1$y", 2048) == .set);
+    try testing.expect(parseModeReport("\x1b[?2026;2$y", 2026) == .reset);
+    try testing.expect(parseModeReport("\x1b[?2004;3$y", 2004) == .permanently_set);
+    // Status 0 (not recognized) and 4 (permanently reset, e.g. GNOME Terminal) are unusable.
+    try testing.expect(parseModeReport("\x1b[?2048;0$y", 2048).supported() == false);
+    try testing.expect(parseModeReport("\x1b[?2048;4$y", 2048).supported() == false);
+    // Status 3 (permanently set) is usable.
+    try testing.expect(parseModeReport("\x1b[?2026;3$y", 2026).supported() == true);
+    // A reply for a different mode is not a match.
+    try testing.expect(parseModeReport("\x1b[?2026;1$y", 2048) == .not_recognized);
+    // Only a DA1 reply (terminal ignored DECRQM) -> not recognized.
+    try testing.expect(parseModeReport("\x1b[?64;1c", 2048) == .not_recognized);
 }
 
 test "machine: ss3 function keys and home/end" {
