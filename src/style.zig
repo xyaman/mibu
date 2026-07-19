@@ -5,7 +5,7 @@ const utils = @import("main.zig").utils;
 
 pub const print = struct {
     /// Returns the ANSI sequence as a []const u8
-    pub const reset = utils.comptimeCsi(utils.reset, .{});
+    pub const reset = utils.comptimeCsi(utils.reset_all, .{});
 
     /// Returns the ANSI sequence to set bold mode
     pub const bold = utils.comptimeCsi(utils.style_bold, .{});
@@ -83,4 +83,8 @@ pub fn hidden(writer: *Io.Writer, v: bool) !void {
 /// Outputs the ANSI sequence to set/unset strikethrough mode
 pub fn strikethrough(writer: *Io.Writer, v: bool) !void {
     return if (v) writer.print(print.strikethrough, .{}) else writer.print(print.no_strikethrough, .{});
+}
+
+test "style reset is SGR 0" {
+    try std.testing.expectEqualStrings("\x1b[0m", print.reset);
 }
