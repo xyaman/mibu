@@ -40,7 +40,7 @@ pub fn main(init: std.process.Init) !void {
     if (supports_kitty) try term.pushKittyKeyboard(stdout, .{ .disambiguate = true, .report_events = true });
     defer if (supports_kitty) term.popKittyKeyboard(stdout) catch {};
 
-    try stdout.print("Press Ctrl-C to exit...\n\r");
+    try stdout.print("Press Ctrl-C to exit...\n\r", .{});
     try stdout.flush();
 
     while (true) {
