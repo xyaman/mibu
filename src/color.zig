@@ -319,3 +319,13 @@ pub fn bgRGB(writer: *Io.Writer, rgb: Rgb) !void {
 pub fn resetAll(writer: *Io.Writer) !void {
     return writer.print(utils.csi ++ utils.reset_all, .{});
 }
+
+/// Resets the foreground to the terminal default (SGR 39), leaving other attributes.
+pub fn fgDefault(writer: *Io.Writer) !void {
+    return writer.print(utils.csi ++ "39m", .{});
+}
+
+/// Resets the background to the terminal default (SGR 49), leaving other attributes.
+pub fn bgDefault(writer: *Io.Writer) !void {
+    return writer.print(utils.csi ++ "49m", .{});
+}
