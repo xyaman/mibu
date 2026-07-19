@@ -80,6 +80,9 @@ pub const Event = union(enum) {
     key: Key,
     mouse: Mouse,
     resize,
+    // Bracketed paste boundaries (DECSET 2004); content between them arrives as normal events.
+    paste_start,
+    paste_end,
     invalid,
     timeout,
     none,
@@ -439,6 +442,8 @@ const Parser = struct {
             'Z' => return keyMods(.tab, .{ .shift = true }),
             '~' => {
                 const n = if (p.param_count >= 1) p.params[0] else 0;
+                if (n == 200) return .paste_start;
+                if (n == 201) return .paste_end;
                 const code = tildeCode(n) orelse return .invalid;
                 return keyMods(code, mods);
             },
@@ -740,6 +745,11 @@ test "machine: insert (fixed) and other tilde keys" {
     try testing.expect(feed("\x1b[5~").?.key.code == .page_up);
     try testing.expect(feed("\x1b[15~").?.key.code == .f5);
     try testing.expect(feed("\x1b[24~").?.key.code == .f12);
+}
+
+test "machine: bracketed paste markers" {
+    try testing.expect(feed("\x1b[200~").? == .paste_start);
+    try testing.expect(feed("\x1b[201~").? == .paste_end);
 }
 
 test "machine: ss3 function keys and home/end" {

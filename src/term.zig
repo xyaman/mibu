@@ -159,6 +159,16 @@ pub fn endSynchronizedUpdate(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?2026l", .{})});
 }
 
+/// Enable bracketed paste (DECSET 2004); pastes then arrive wrapped as `events.Event.paste_start`/`.paste_end`.
+pub fn enableBracketedPaste(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2004h", .{})});
+}
+
+/// Disable bracketed paste (DECSET 2004). Call before exit.
+pub fn disableBracketedPaste(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2004l", .{})});
+}
+
 /// Kitty keyboard protocol progressive-enhancement flags.
 /// https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
 pub const KittyFlags = packed struct {
