@@ -149,6 +149,16 @@ pub fn exitAlternateScreen(writer: *Io.Writer) !void {
     try writer.print("{s}", .{utils.comptimeCsi("?1049l", .{})});
 }
 
+/// Begin a synchronized update (DEC mode 2026); pair with `endSynchronizedUpdate` to present a frame without tearing.
+pub fn beginSynchronizedUpdate(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2026h", .{})});
+}
+
+/// End a synchronized update (DEC mode 2026), presenting the buffered frame.
+pub fn endSynchronizedUpdate(writer: *Io.Writer) !void {
+    try writer.print("{s}", .{utils.comptimeCsi("?2026l", .{})});
+}
+
 /// Kitty keyboard protocol progressive-enhancement flags.
 /// https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
 pub const KittyFlags = packed struct {
